@@ -20,6 +20,7 @@ import (
 	"github.com/assanoff/servicekit/web/router"
 
 	"github.com/assanoff/service-kit-x/internal/app/deps"
+	"github.com/assanoff/service-kit-x/internal/app/reqctx"
 )
 
 // buildRouter constructs the HTTP handler. Cross-cutting middleware
@@ -37,17 +38,20 @@ func buildRouter(ctx context.Context, d *deps.Deps, m *metrics.Metrics, debug *d
 	translator := d.Translator(ctx)
 
 	// App middleware applied to every typed handler (outermost first):
-	//   - localizeErrors localizes any *errs.Error response (i18n / static strings).
-	//   - translationrest.Middleware translates per-record content: it resolves the
-	//     request language and, when the handler returns a translation.Translatable
-	//     (or TranslatableList), applies the stored translation in place — so widget
-	//     read handlers stay translation-agnostic.
+	//   - reqctx parses the cross-cutting request headers ONCE (language, tenant,
+	//     city) into the context; everything below reads from there instead of
+	//     re-parsing headers.
+	//   - localizeErrors localizes any *errs.Error response into reqctx.Language.
+	//   - translationrest translates per-record content: when a handler returns a
+	//     translation.Translatable (or TranslatableList) it applies the stored
+	//     translation in place — so widget read handlers stay translation-agnostic.
 	// Audit recording is NOT a transport concern here — the widget domain emits
 	// audit events on the eventbus (see core/widget), which covers REST, gRPC and
 	// background paths uniformly.
 	r := router.New(
+		reqctx.Middleware(),
 		localizeErrors(translator),
-		translationrest.Middleware(log, d.Translation(ctx)),
+		translationrest.MiddlewareWithLang(log, d.Translation(ctx), reqctx.Language),
 	)
 
 	// Global middleware — safe for every route including debug. Access logging
@@ -62,7 +66,6 @@ func buildRouter(ctx context.Context, d *deps.Deps, m *metrics.Metrics, debug *d
 	r.Use(
 		mid.TraceRequest(tracer),
 		httplog.Middleware(log.Named("access"), httpLogOpts),
-		translator.Middleware(),
 	)
 
 	r.HandleFunc("GET /healthz", health.Liveness())
@@ -129,13 +132,13 @@ func buildRouter(ctx context.Context, d *deps.Deps, m *metrics.Metrics, debug *d
 }
 
 // localizeErrors returns an app middleware that translates *errs.Error responses
-// into the request language (from the i18n middleware) before they are encoded.
+// into the request language (resolved once by reqctx) before they are encoded.
 func localizeErrors(tr *i18n.Translator) rest.MidFunc {
 	return func(next rest.HandlerFunc) rest.HandlerFunc {
 		return func(ctx context.Context, r *http.Request) rest.Encoder {
 			resp := next(ctx, r)
 			if e, ok := resp.(*errs.Error); ok {
-				return tr.TranslateError(i18n.LangFromContext(ctx), e)
+				return tr.TranslateError(reqctx.Language(ctx), e)
 			}
 			return resp
 		}
