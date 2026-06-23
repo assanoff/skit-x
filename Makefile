@@ -18,8 +18,10 @@ SWAG        ?= github.com/swaggo/swag/v2/cmd/swag@latest
 OASDIFF     ?= github.com/oasdiff/oasdiff@latest
 TPARSE      ?= github.com/mfridman/tparse@latest
 
-# Coverage profile written by `make cover` / `make cover-integration`.
+# Coverage profile written by `make cover` / `make cover-integration`;
+# THRESHOLD is the `cover-check` CI gate (measured over the integration suite).
 COVERPROFILE ?= coverage.out
+THRESHOLD    ?= 65
 
 # OpenAPI spec (REST contract) generated from swag annotations.
 SPEC        := docs/swagger.json
@@ -62,8 +64,9 @@ run: ## Run the server (go run . serve)
 	$(GO) run -ldflags "$(LDFLAGS)" . serve
 
 .PHONY: clean
-clean: ## Remove build artifacts
+clean: ## Remove build and coverage artifacts
 	rm -rf bin
+	rm -f $(COVERPROFILE) coverage.html
 
 # ---------------------------------------------------------------------------
 # Test
@@ -91,6 +94,16 @@ cover-integration: ## Integration coverage (docker): credits coverage to every p
 	$(GO) test -count=1 -coverpkg=./... -covermode=atomic -coverprofile=$(COVERPROFILE) ./internal/tests/...
 	@$(GO) tool cover -func=$(COVERPROFILE) | tail -n1
 	@$(GO) tool cover -html=$(COVERPROFILE) -o coverage.html && echo ">> wrote coverage.html"
+
+.PHONY: cover-check
+cover-check: ## Fail if integration coverage is below THRESHOLD% (CI gate; docker; override THRESHOLD=NN)
+	$(GO) test -count=1 -coverpkg=./... -covermode=atomic -coverprofile=$(COVERPROFILE) ./internal/tests/...
+	@total=$$($(GO) tool cover -func=$(COVERPROFILE) | awk '/^total:/ {print $$3}' | tr -d '%'); \
+	if awk "BEGIN { exit !($$total + 0 >= $(THRESHOLD)) }"; then \
+		echo ">> coverage $$total% >= $(THRESHOLD)% — OK"; \
+	else \
+		echo ">> coverage $$total% < $(THRESHOLD)% — FAIL"; exit 1; \
+	fi
 
 # ---------------------------------------------------------------------------
 # Local infrastructure (Postgres for `make run` / `make migrate`)
