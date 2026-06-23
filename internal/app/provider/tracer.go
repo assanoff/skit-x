@@ -6,9 +6,10 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 
-	"github.com/assanoff/service-kit-x/internal/app/config"
 	"github.com/assanoff/servicekit/dim"
 	skotel "github.com/assanoff/servicekit/otel"
+
+	"github.com/assanoff/service-kit-x/internal/app/config"
 )
 
 // Tracer returns a factory for the application tracer. When tracing is disabled

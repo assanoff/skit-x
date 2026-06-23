@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# The module uses `replace github.com/assanoff/servicekit => ../go-web-sdk`, so
+# the SDK must sit next to this repo. Every job checks both repos out into
+# sibling directories under the workspace and runs from ./service-kit-x.
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: service-kit-x
+      - uses: actions/checkout@v4
+        with:
+          repository: assanoff/servicekit
+          path: go-web-sdk
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache-dependency-path: service-kit-x/go.sum
+      - name: Build
+        working-directory: service-kit-x
+        run: go build ./...
+      - name: Vet
+        working-directory: service-kit-x
+        run: go vet ./...
+      - name: Test
+        working-directory: service-kit-x
+        run: go test -race -short ./...
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: service-kit-x
+      - uses: actions/checkout@v4
+        with:
+          repository: assanoff/servicekit
+          path: go-web-sdk
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: service-kit-x
+
+  # Integration tests stand up Postgres and RabbitMQ via testcontainers; the
+  # ubuntu runner ships with Docker, so they run unguarded here (locally they
+  # are skipped under `go test -short`).
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: service-kit-x
+      - uses: actions/checkout@v4
+        with:
+          repository: assanoff/servicekit
+          path: go-web-sdk
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache-dependency-path: service-kit-x/go.sum
+      - name: Integration tests
+        working-directory: service-kit-x
+        run: go test -count=1 -timeout 20m ./internal/tests/...
+
+  # Contract diff gates. This service exposes three contracts to consumers; each
+  # is diffed against the latest release tag (or the default branch before the
+  # first tag). On v0.x these report but never fail the build — a major bump is a
+  # deliberate decision (see the Makefile release targets).
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: service-kit-x
+          fetch-depth: 0 # tags + history needed for the baselines
+      - uses: actions/checkout@v4
+        with:
+          repository: assanoff/servicekit
+          path: go-web-sdk
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ github.token }}
+
+      - name: Go API (gorelease)
+        working-directory: service-kit-x
+        run: go run golang.org/x/exp/cmd/gorelease@latest || true
+
+      - name: gRPC (buf breaking)
+        working-directory: service-kit-x
+        # Compare the proto module against the same path on the default branch.
+        run: |
+          buf breaking proto \
+            --against "https://github.com/${{ github.repository }}.git#subdir=proto,ref=${{ github.event.repository.default_branch }}" \
+            || echo "::warning::gRPC contract has a breaking change — bump a major"
+
+      - name: REST (oasdiff)
+        working-directory: service-kit-x
+        # Regenerate the spec, then diff it against the spec committed at the
+        # latest tag. Skipped until the first tag exists.
+        run: |
+          go run github.com/swaggo/swag/v2/cmd/swag@latest init \
+            -g main.go -o docs --v3.1 --ot json,yaml --parseDependency --parseInternal
+          cur=$(git tag --list 'v*' | sort -V | tail -1)
+          if [ -z "$cur" ]; then echo "no tag yet — REST baseline unavailable, skipping"; exit 0; fi
+          base=$(mktemp)
+          if ! git show "$cur:docs/swagger.json" > "$base" 2>/dev/null; then
+            echo "no docs/swagger.json at $cur, skipping"; exit 0
+          fi
+          go run github.com/oasdiff/oasdiff@latest breaking "$base" docs/swagger.json \
+            || echo "::warning::REST contract has a breaking change — bump a major"

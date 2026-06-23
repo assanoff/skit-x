@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/assanoff/service-kit-x/internal/app/deps"
 	"github.com/assanoff/servicekit/auth"
 	"github.com/assanoff/servicekit/debugsrv"
 	"github.com/assanoff/servicekit/errs"
@@ -16,6 +15,8 @@ import (
 	"github.com/assanoff/servicekit/web/mid"
 	"github.com/assanoff/servicekit/web/rest"
 	"github.com/assanoff/servicekit/web/router"
+
+	"github.com/assanoff/service-kit-x/internal/app/deps"
 )
 
 // buildRouter constructs the HTTP handler. Cross-cutting middleware

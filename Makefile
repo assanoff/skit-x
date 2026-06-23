@@ -8,7 +8,7 @@ BIN         := bin/$(APP)
 # Version is stamped into the binary (cmd.version) and used by `release`.
 # Derived from git: the latest tag, or a short SHA (with -dirty) when untagged.
 VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS     := -X github.com/assanoff/service-kit-x/cmd.version=$(VERSION)
+LDFLAGS     := -X github.com/assanoff/service-kit-x/internal/cmd.version=$(VERSION)
 
 # Dev tool versions (override to pin).
 GOLANGCI    ?= github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest

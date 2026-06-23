@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/assanoff/service-kit-x/internal/app/locale"
 	"github.com/assanoff/servicekit/auth"
 	"github.com/assanoff/servicekit/dim"
 	"github.com/assanoff/servicekit/i18n"
+
+	"github.com/assanoff/service-kit-x/internal/app/locale"
 )
 
 // initTranslator builds the i18n translator from the embedded catalogs. It is

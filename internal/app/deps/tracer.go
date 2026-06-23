@@ -1,8 +1,9 @@
 package deps
 
 import (
-	"github.com/assanoff/service-kit-x/internal/app/provider"
 	"github.com/assanoff/servicekit/dim"
+
+	"github.com/assanoff/service-kit-x/internal/app/provider"
 )
 
 // initTracer initializes the application tracer (no-op when tracing is disabled).

@@ -49,20 +49,7 @@
                 ],
                 "type": "object"
             },
-            "widget.UpdateWidgetReq": {
-                "properties": {
-                    "description": {
-                        "maxLength": 500,
-                        "type": "string"
-                    },
-                    "name": {
-                        "maxLength": 100,
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "widget.WidgetResponse": {
+            "widget.Response": {
                 "properties": {
                     "created_at": {
                         "type": "string"
@@ -77,6 +64,19 @@
                         "type": "string"
                     },
                     "updated_at": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "widget.UpdateWidgetReq": {
+                "properties": {
+                    "description": {
+                        "maxLength": 500,
+                        "type": "string"
+                    },
+                    "name": {
+                        "maxLength": 100,
                         "type": "string"
                     }
                 },
@@ -102,7 +102,7 @@
                             "application/json": {
                                 "schema": {
                                     "items": {
-                                        "$ref": "#/components/schemas/widget.WidgetResponse"
+                                        "$ref": "#/components/schemas/widget.Response"
                                     },
                                     "type": "array"
                                 }
@@ -142,7 +142,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/widget.WidgetResponse"
+                                    "$ref": "#/components/schemas/widget.Response"
                                 }
                             }
                         },
@@ -265,7 +265,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/widget.WidgetResponse"
+                                    "$ref": "#/components/schemas/widget.Response"
                                 }
                             }
                         },
@@ -324,7 +324,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/widget.WidgetResponse"
+                                    "$ref": "#/components/schemas/widget.Response"
                                 }
                             }
                         },

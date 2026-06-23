@@ -1,0 +1,63 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+    - gocritic
+    - misspell
+    - revive
+    - unconvert
+    - unparam
+    - wastedassign
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: false
+    errcheck:
+      # Writes to stdout/stderr (CLI progress, log lines) don't warrant error
+      # handling; everything else must still be checked.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+  exclusions:
+    generated: lax
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - unparam
+          - bodyclose
+      - path: mocks/
+        linters:
+          - revive
+      # Protobuf/gRPC stubs are generated; do not hold them to our lint standards.
+      - path: gen/
+        linters:
+          - revive
+          - errorlint
+          - gocritic
+          - staticcheck
+          - unconvert
+          - unparam
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/assanoff/service-kit-x
+  exclusions:
+    generated: lax
+    paths:
+      - gen
+      - docs

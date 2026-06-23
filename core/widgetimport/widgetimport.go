@@ -20,10 +20,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/assanoff/service-kit-x/core/widget"
 	"github.com/assanoff/servicekit/logger"
 	"github.com/assanoff/servicekit/queue"
 	"github.com/assanoff/servicekit/worker"
+
+	"github.com/assanoff/service-kit-x/core/widget"
 )
 
 // Kind is the queue task kind handled by this module.

@@ -3,9 +3,10 @@ package deps
 import (
 	"context"
 
-	"github.com/assanoff/service-kit-x/internal/app/provider"
 	"github.com/assanoff/servicekit/dim"
 	"github.com/assanoff/servicekit/queue"
+
+	"github.com/assanoff/service-kit-x/internal/app/provider"
 )
 
 // initStore initializes the Postgres connection pool and assigns it to the container.

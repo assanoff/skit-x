@@ -9,11 +9,12 @@ import (
 
 	"github.com/google/uuid"
 
-	widgetcore "github.com/assanoff/service-kit-x/core/widget"
-	"github.com/assanoff/service-kit-x/core/widgetimport"
 	"github.com/assanoff/servicekit/errs"
 	"github.com/assanoff/servicekit/web/rest"
 	"github.com/assanoff/servicekit/web/router"
+
+	widgetcore "github.com/assanoff/service-kit-x/core/widget"
+	"github.com/assanoff/service-kit-x/core/widgetimport"
 )
 
 // Handler exposes widget endpoints.
@@ -81,7 +82,7 @@ func (h *Handler) importBatch(ctx context.Context, r *http.Request) rest.Encoder
 //	@Accept		json
 //	@Produce	json
 //	@Param		request	body		CreateWidgetReq	true	"widget to create"
-//	@Success	201		{object}	WidgetResponse
+//	@Success	201		{object}	Response
 //	@Failure	400		{string}	string	"invalid argument"
 //	@Router		/widgets [post]
 func (h *Handler) create(ctx context.Context, r *http.Request) rest.Encoder {
@@ -102,7 +103,7 @@ func (h *Handler) create(ctx context.Context, r *http.Request) rest.Encoder {
 //	@Summary	List widgets
 //	@Tags		widgets
 //	@Produce	json
-//	@Success	200	{array}	WidgetResponse
+//	@Success	200	{array}	Response
 //	@Router		/widgets [get]
 func (h *Handler) query(ctx context.Context, _ *http.Request) rest.Encoder {
 	ws, err := h.core.Query(ctx)
@@ -118,7 +119,7 @@ func (h *Handler) query(ctx context.Context, _ *http.Request) rest.Encoder {
 //	@Tags		widgets
 //	@Produce	json
 //	@Param		id	path		string	true	"widget id"
-//	@Success	200	{object}	WidgetResponse
+//	@Success	200	{object}	Response
 //	@Failure	404	{string}	string	"not found"
 //	@Router		/widgets/{id} [get]
 func (h *Handler) queryByID(ctx context.Context, r *http.Request) rest.Encoder {
@@ -142,7 +143,7 @@ func (h *Handler) queryByID(ctx context.Context, r *http.Request) rest.Encoder {
 //	@Produce	json
 //	@Param		id		path		string			true	"widget id"
 //	@Param		request	body		UpdateWidgetReq	true	"fields to update"
-//	@Success	200		{object}	WidgetResponse
+//	@Success	200		{object}	Response
 //	@Failure	400		{string}	string	"invalid argument"
 //	@Failure	404		{string}	string	"not found"
 //	@Router		/widgets/{id} [put]

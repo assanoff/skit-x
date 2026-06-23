@@ -33,16 +33,7 @@ components:
       required:
       - widgets
       type: object
-    widget.UpdateWidgetReq:
-      properties:
-        description:
-          maxLength: 500
-          type: string
-        name:
-          maxLength: 100
-          type: string
-      type: object
-    widget.WidgetResponse:
+    widget.Response:
       properties:
         created_at:
           type: string
@@ -53,6 +44,15 @@ components:
         name:
           type: string
         updated_at:
+          type: string
+      type: object
+    widget.UpdateWidgetReq:
+      properties:
+        description:
+          maxLength: 500
+          type: string
+        name:
+          maxLength: 100
           type: string
       type: object
 externalDocs:
@@ -72,7 +72,7 @@ paths:
             application/json:
               schema:
                 items:
-                  $ref: '#/components/schemas/widget.WidgetResponse'
+                  $ref: '#/components/schemas/widget.Response'
                 type: array
           description: OK
       summary: List widgets
@@ -95,7 +95,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/widget.WidgetResponse'
+                $ref: '#/components/schemas/widget.Response'
           description: Created
         "400":
           content:
@@ -140,7 +140,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/widget.WidgetResponse'
+                $ref: '#/components/schemas/widget.Response'
           description: OK
         "404":
           content:
@@ -175,7 +175,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/widget.WidgetResponse'
+                $ref: '#/components/schemas/widget.Response'
           description: OK
         "400":
           content:

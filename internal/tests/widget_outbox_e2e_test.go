@@ -13,13 +13,14 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
-	"github.com/assanoff/service-kit-x/core/widget"
-	"github.com/assanoff/service-kit-x/core/widget/widgetdb"
-	"github.com/assanoff/service-kit-x/core/widgetaudit"
 	"github.com/assanoff/servicekit/broker/rabbitmq"
 	"github.com/assanoff/servicekit/logger"
 	"github.com/assanoff/servicekit/outbox"
 	"github.com/assanoff/servicekit/worker"
+
+	"github.com/assanoff/service-kit-x/core/widget"
+	"github.com/assanoff/service-kit-x/core/widget/widgetdb"
+	"github.com/assanoff/service-kit-x/core/widgetaudit"
 )
 
 // TestWidgetOutboxE2E exercises the full reliable publish->consume pipeline

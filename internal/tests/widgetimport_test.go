@@ -8,13 +8,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/assanoff/service-kit-x/core/widget"
-	"github.com/assanoff/service-kit-x/core/widget/widgetdb"
-	"github.com/assanoff/service-kit-x/core/widgetimport"
 	"github.com/assanoff/servicekit/logger"
 	"github.com/assanoff/servicekit/queue"
 	"github.com/assanoff/servicekit/sqldb"
 	"github.com/assanoff/servicekit/worker"
+
+	"github.com/assanoff/service-kit-x/core/widget"
+	"github.com/assanoff/service-kit-x/core/widget/widgetdb"
+	"github.com/assanoff/service-kit-x/core/widgetimport"
 )
 
 // TestWidgetImportEndpoint exercises the REST -> queue path: POST /widgets/import

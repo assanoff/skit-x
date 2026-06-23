@@ -10,9 +10,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 
-	"github.com/assanoff/service-kit-x/core/widget"
 	"github.com/assanoff/servicekit/logger"
 	"github.com/assanoff/servicekit/sqldb"
+
+	"github.com/assanoff/service-kit-x/core/widget"
 )
 
 // Store implements widget.Store against Postgres.

@@ -10,9 +10,10 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/assanoff/servicekit/errs"
+
 	"github.com/assanoff/service-kit-x/core/widget"
 	widgetv1 "github.com/assanoff/service-kit-x/gen/widget/v1"
-	"github.com/assanoff/servicekit/errs"
 )
 
 // Handler implements widgetv1.WidgetServiceServer.

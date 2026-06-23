@@ -8,11 +8,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel/trace"
 
-	widgetapi "github.com/assanoff/service-kit-x/api/widget"
-	"github.com/assanoff/service-kit-x/core/widget"
-	"github.com/assanoff/service-kit-x/core/widgetimport"
-	"github.com/assanoff/service-kit-x/internal/app/config"
-	"github.com/assanoff/service-kit-x/internal/app/handlers/widgetgrpc"
 	"github.com/assanoff/servicekit/auth"
 	"github.com/assanoff/servicekit/broker"
 	"github.com/assanoff/servicekit/broker/rabbitmq"
@@ -22,6 +17,12 @@ import (
 	"github.com/assanoff/servicekit/logger"
 	"github.com/assanoff/servicekit/outbox"
 	"github.com/assanoff/servicekit/queue"
+
+	widgetapi "github.com/assanoff/service-kit-x/api/widget"
+	"github.com/assanoff/service-kit-x/core/widget"
+	"github.com/assanoff/service-kit-x/core/widgetimport"
+	"github.com/assanoff/service-kit-x/internal/app/config"
+	"github.com/assanoff/service-kit-x/internal/app/handlers/widgetgrpc"
 )
 
 // Deps holds application dependencies as lazy providers.

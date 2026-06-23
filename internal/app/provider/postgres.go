@@ -9,10 +9,11 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/assanoff/service-kit-x/internal/app/config"
 	"github.com/assanoff/servicekit/dim"
 	"github.com/assanoff/servicekit/logger"
 	"github.com/assanoff/servicekit/sqldb"
+
+	"github.com/assanoff/service-kit-x/internal/app/config"
 )
 
 // Postgres returns a factory that opens and verifies a Postgres connection pool.

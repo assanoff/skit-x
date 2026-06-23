@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/assanoff/service-kit-x/internal/app/config"
 	"github.com/assanoff/servicekit/logger"
+
+	"github.com/assanoff/service-kit-x/internal/app/config"
 )
 
 // restServer adapts an *http.Server to worker.Runnable so the supervisor can
