@@ -17,6 +17,7 @@ import (
 	"github.com/assanoff/servicekit/page"
 	"github.com/assanoff/servicekit/query"
 	"github.com/assanoff/servicekit/web/rest"
+	"github.com/assanoff/servicekit/web/restmid"
 
 	usercore "github.com/assanoff/service-kit-x/core/user"
 )
@@ -37,7 +38,9 @@ func New(core *usercore.Core) *Handler {
 // authorization when auth is enabled and is unguarded otherwise.
 func (h *Handler) Routes(handle rest.Handle, authMW ...rest.MidFunc) {
 	handle("GET /users", h.query)
-	handle("GET /users/{id}", h.queryByID)
+	// A cacheable read: per-handler app middleware (the developer's choice) adds
+	// Cache-Control + a conditional-GET ETag without touching the other routes.
+	handle("GET /users/{id}", h.queryByID, restmid.CacheControl(60), restmid.ETag())
 
 	handle("POST /users", h.create, authMW...)
 	handle("PUT /users/{id}", h.update, authMW...)

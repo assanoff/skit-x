@@ -12,11 +12,11 @@ import (
 	"github.com/assanoff/servicekit/errs"
 	"github.com/assanoff/servicekit/health"
 	"github.com/assanoff/servicekit/httplog"
-	"github.com/assanoff/servicekit/i18n"
 	"github.com/assanoff/servicekit/metrics"
 	"github.com/assanoff/servicekit/translation/translationrest"
 	"github.com/assanoff/servicekit/web/mid"
 	"github.com/assanoff/servicekit/web/rest"
+	"github.com/assanoff/servicekit/web/restmid"
 	"github.com/assanoff/servicekit/web/router"
 
 	"github.com/assanoff/service-kit-x/internal/app/config"
@@ -44,18 +44,31 @@ func buildRouter(ctx context.Context, d *deps.Deps, m *metrics.Metrics, debug *d
 	//   - reqctx parses the cross-cutting request headers ONCE (language, tenant,
 	//     city) into the context; everything below reads from there instead of
 	//     re-parsing headers.
-	//   - localizeErrors localizes any *errs.Error response into reqctx.Language.
+	//   - restmid.LocalizeErrors localizes any *errs.Error response into the
+	//     request language (resolved by reqctx.Language).
+	//   - restmid.MaskInternal (inside LocalizeErrors) hides 5xx error detail from
+	//     clients in production, logging the original server-side; in development
+	//     (Env != "production") it is a no-op so the detail stays visible.
 	//   - translationrest translates per-record content: when a handler returns a
 	//     translation.Translatable (or TranslatableList) it applies the stored
 	//     translation in place — so widget read handlers stay translation-agnostic.
 	// Audit recording is NOT a transport concern here — the widget domain emits
 	// audit events on the eventbus (see core/widget), which covers REST, gRPC and
 	// background paths uniformly.
-	r := router.New(
-		reqctx.Middleware(),
-		localizeErrors(translator),
-		translationrest.MiddlewareWithLang(log, d.Translation(ctx), reqctx.Language),
-	)
+	//
+	// The app middleware is assembled as: reqctx (outermost — parses the language
+	// before anything reads it) -> restmid.Chain (LocalizeErrors, MaskInternal) ->
+	// translationrest (innermost). Chain is the SDK-standard core; reqctx and
+	// translation are app-specific and wrap it.
+	appMids := []rest.MidFunc{reqctx.Middleware()}
+	appMids = append(appMids, restmid.Chain(restmid.Config{
+		Translator:   translator,
+		Lang:         reqctx.Language,
+		Logger:       log,
+		MaskInternal: d.Opts.Env == "production",
+	})...)
+	appMids = append(appMids, translationrest.MiddlewareWithLang(log, d.Translation(ctx), reqctx.Language))
+	r := router.New(appMids...)
 
 	// Global middleware — safe for every route including debug. Access logging
 	// via the vendored httplog (tagged logger=access) also recovers panics, so
@@ -160,19 +173,5 @@ func compactHandler(core *auditlog.Core, a config.Audit) rest.HandlerFunc {
 			return errs.New(errs.Internal, err)
 		}
 		return rest.JSON(map[string]int{"models": res.Models, "deleted": res.Deleted})
-	}
-}
-
-// localizeErrors returns an app middleware that translates *errs.Error responses
-// into the request language (resolved once by reqctx) before they are encoded.
-func localizeErrors(tr *i18n.Translator) rest.MidFunc {
-	return func(next rest.HandlerFunc) rest.HandlerFunc {
-		return func(ctx context.Context, r *http.Request) rest.Encoder {
-			resp := next(ctx, r)
-			if e, ok := resp.(*errs.Error); ok {
-				return tr.TranslateError(reqctx.Language(ctx), e)
-			}
-			return resp
-		}
 	}
 }
