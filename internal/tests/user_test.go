@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"testing"
+
+	"github.com/matryer/is"
 )
 
 // TestUserCRUD exercises the user module end to end (auth disabled by default in
@@ -13,62 +15,64 @@ func TestUserCRUD(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test requires docker")
 	}
+	is := is.New(t)
 
 	ctx := context.Background()
 	srv, _ := newTestServer(ctx, t)
 
 	// Create.
-	created := mustDo(t, srv, http.MethodPost, "/users",
-		`{"email":"alice@example.com","name":"Alice"}`, http.StatusCreated)
+	resp := doReq(t, srv, http.MethodPost, "/users", `{"email":"alice@example.com","name":"Alice"}`)
+	is.Equal(resp.StatusCode, http.StatusCreated) // create -> 201
+	var created map[string]any
+	decode(t, resp, &created)
 	id, _ := created["id"].(string)
-	if id == "" {
-		t.Fatalf("expected an id, got %v", created)
-	}
-	if created["email"] != "alice@example.com" {
-		t.Fatalf("email mismatch: %v", created)
-	}
+	is.True(id != "")                               // id assigned
+	is.Equal(created["email"], "alice@example.com") // echoes email
 
 	// Get by id.
-	got := mustDo(t, srv, http.MethodGet, "/users/"+id, "", http.StatusOK)
-	if got["name"] != "Alice" {
-		t.Fatalf("name mismatch: %v", got)
-	}
+	resp = doReq(t, srv, http.MethodGet, "/users/"+id, "")
+	is.Equal(resp.StatusCode, http.StatusOK)
+	var got map[string]any
+	decode(t, resp, &got)
+	is.Equal(got["name"], "Alice")
 
 	// List: query.Result envelope {items,total,page,rowsPerPage}.
-	listResp := doReq(t, srv, http.MethodGet, "/users", "")
-	assertStatus(t, listResp, http.StatusOK)
+	resp = doReq(t, srv, http.MethodGet, "/users", "")
+	is.Equal(resp.StatusCode, http.StatusOK)
 	var list struct {
 		Items []map[string]any `json:"items"`
 		Total int              `json:"total"`
 	}
-	decode(t, listResp, &list)
-	if len(list.Items) != 1 || list.Total != 1 {
-		t.Fatalf("expected 1 user, got items=%d total=%d", len(list.Items), list.Total)
-	}
+	decode(t, resp, &list)
+	is.Equal(len(list.Items), 1) // one user listed
+	is.Equal(list.Total, 1)
 
 	// Update (partial: name only) preserves email.
-	updated := mustDo(t, srv, http.MethodPut, "/users/"+id, `{"name":"Alicia"}`, http.StatusOK)
-	if updated["name"] != "Alicia" {
-		t.Fatalf("update did not apply: %v", updated)
-	}
-	if updated["email"] != "alice@example.com" {
-		t.Fatalf("update should preserve email: %v", updated)
-	}
+	resp = doReq(t, srv, http.MethodPut, "/users/"+id, `{"name":"Alicia"}`)
+	is.Equal(resp.StatusCode, http.StatusOK)
+	var updated map[string]any
+	decode(t, resp, &updated)
+	is.Equal(updated["name"], "Alicia")             // update applied
+	is.Equal(updated["email"], "alice@example.com") // email preserved
 
 	// Validation: a malformed email -> 400 invalid_argument.
-	bad := doReq(t, srv, http.MethodPost, "/users", `{"email":"not-an-email","name":"x"}`)
-	assertStatus(t, bad, http.StatusBadRequest)
+	resp = doReq(t, srv, http.MethodPost, "/users", `{"email":"not-an-email","name":"x"}`)
+	is.Equal(resp.StatusCode, http.StatusBadRequest)
 	var errBody map[string]any
-	decode(t, bad, &errBody)
-	if errBody["code"] != "invalid_argument" {
-		t.Fatalf("expected invalid_argument, got %v", errBody)
-	}
+	decode(t, resp, &errBody)
+	is.Equal(errBody["code"], "invalid_argument")
 
 	// Duplicate email -> 409 already_exists (unique index).
-	dup := doReq(t, srv, http.MethodPost, "/users", `{"email":"alice@example.com","name":"Clone"}`)
-	assertStatus(t, dup, http.StatusConflict)
+	resp = doReq(t, srv, http.MethodPost, "/users", `{"email":"alice@example.com","name":"Clone"}`)
+	is.Equal(resp.StatusCode, http.StatusConflict)
+	_ = resp.Body.Close()
 
 	// Delete -> 204, then 404.
-	assertStatus(t, doReq(t, srv, http.MethodDelete, "/users/"+id, ""), http.StatusNoContent)
-	assertStatus(t, doReq(t, srv, http.MethodGet, "/users/"+id, ""), http.StatusNotFound)
+	resp = doReq(t, srv, http.MethodDelete, "/users/"+id, "")
+	is.Equal(resp.StatusCode, http.StatusNoContent)
+	_ = resp.Body.Close()
+
+	resp = doReq(t, srv, http.MethodGet, "/users/"+id, "")
+	is.Equal(resp.StatusCode, http.StatusNotFound)
+	_ = resp.Body.Close()
 }
