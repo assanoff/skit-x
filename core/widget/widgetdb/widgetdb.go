@@ -12,6 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/assanoff/servicekit/logger"
+	"github.com/assanoff/servicekit/page"
 	"github.com/assanoff/servicekit/sqldb"
 	"github.com/assanoff/servicekit/sqldb/dialect"
 
@@ -135,7 +136,7 @@ func (s *Store) Count(ctx context.Context) (int, error) {
 // store's dialect, which keeps the engine-specific OFFSET/FETCH (Postgres) vs
 // LIMIT/OFFSET (SQLite) difference behind one seam; the clause binds :offset and
 // :rows_per_page supplied below.
-func (s *Store) Query(ctx context.Context, page widget.Page) ([]widget.Widget, error) {
+func (s *Store) Query(ctx context.Context, pg page.Page) ([]widget.Widget, error) {
 	var buf bytes.Buffer
 	buf.WriteString(`SELECT id, name, description, created_at, updated_at FROM widgets ORDER BY created_at DESC`)
 	s.dialect.Paginate(&buf)
@@ -143,7 +144,7 @@ func (s *Store) Query(ctx context.Context, page widget.Page) ([]widget.Widget, e
 	data := struct {
 		Offset      int `db:"offset"`
 		RowsPerPage int `db:"rows_per_page"`
-	}{Offset: page.Offset(), RowsPerPage: page.RowsPerPage}
+	}{Offset: pg.Offset(), RowsPerPage: pg.RowsPerPage()}
 
 	var rows []dbWidget
 	if err := sqldb.NamedQuerySlice(ctx, s.log, s.db, buf.String(), data, &rows); err != nil {

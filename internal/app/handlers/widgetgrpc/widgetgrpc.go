@@ -9,9 +9,12 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/assanoff/servicekit/errs"
+	"github.com/assanoff/servicekit/page"
 
 	"github.com/assanoff/service-kit-x/core/widget"
 	widgetv1 "github.com/assanoff/service-kit-x/gen/widget/v1"
@@ -25,6 +28,23 @@ type Handler struct {
 
 // New builds a Handler.
 func New(core *widget.Core) *Handler { return &Handler{core: core} }
+
+// Register implements grpcserver.Service: the feature owns its generated
+// registration call, so the server package registers it via gs.Install(h)
+// without importing widgetv1.
+func (h *Handler) Register(reg grpc.ServiceRegistrar) {
+	widgetv1.RegisterWidgetServiceServer(reg, h)
+}
+
+// RegisterGateway is the grpc-gateway registration seam (a grpcgateway.
+// HandlerRegistrar): the feature owns its generated gateway registrar, so the
+// server wires the gateway via grpcgateway.New(..., h.RegisterGateway) without
+// importing widgetv1. The gateway proxies HTTP to the gRPC server over conn, so
+// this registration is independent of this handler instance — the receiver is
+// unused (blank) on purpose.
+func (*Handler) RegisterGateway(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
+	return widgetv1.RegisterWidgetServiceHandler(ctx, mux, conn)
+}
 
 // CreateWidget implements the gRPC WidgetService.
 func (h *Handler) CreateWidget(ctx context.Context, req *widgetv1.CreateWidgetRequest) (*widgetv1.CreateWidgetResponse, error) {
@@ -57,7 +77,7 @@ func (h *Handler) GetWidget(ctx context.Context, req *widgetv1.GetWidgetRequest)
 
 // ListWidgets implements the gRPC WidgetService.
 func (h *Handler) ListWidgets(ctx context.Context, req *widgetv1.ListWidgetsRequest) (*widgetv1.ListWidgetsResponse, error) {
-	ws, err := h.core.Query(ctx, widget.NewPage(int(req.GetPage()), int(req.GetPageSize())))
+	ws, err := h.core.Query(ctx, page.New(int(req.GetPage()), int(req.GetPageSize())))
 	if err != nil {
 		return nil, err
 	}

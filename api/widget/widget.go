@@ -6,14 +6,15 @@ package widget
 import (
 	"context"
 	"net/http"
-	"strconv"
 
 	"github.com/google/uuid"
 
 	"github.com/assanoff/servicekit/errs"
+	"github.com/assanoff/servicekit/page"
+	"github.com/assanoff/servicekit/query"
+	"github.com/assanoff/servicekit/to"
 	"github.com/assanoff/servicekit/translation"
 	"github.com/assanoff/servicekit/web/rest"
-	"github.com/assanoff/servicekit/web/router"
 
 	widgetcore "github.com/assanoff/service-kit-x/core/widget"
 	"github.com/assanoff/service-kit-x/core/widgetimport"
@@ -38,23 +39,24 @@ func New(core *widgetcore.Core, importer *widgetimport.Importer, counter Counter
 	return &Handler{core: core, importer: importer, counter: counter, translator: translator}
 }
 
-// Routes registers the widget endpoints on r. Reads are public; writes are
-// registered on a sub-router carrying any authMW (e.g. JWT auth + RBAC) so they
-// require authorization when auth is enabled.
-func (h *Handler) Routes(r *router.Router, authMW ...router.Middleware) {
-	r.HandleApp("GET /widgets", h.query)
-	r.HandleApp("GET /widgets/count", h.count)
-	r.HandleApp("GET /widgets/{id}", h.queryByID)
+// Routes registers the widget endpoints through the handle seam, so this
+// transport does not depend on the router type — the server's Install function
+// passes router.HandleApp. Reads are public; each write passes authMW (e.g.
+// JWT auth + RBAC, as rest.MidFunc) so it requires authorization when auth is
+// enabled, and is unguarded otherwise.
+func (h *Handler) Routes(handle rest.Handle, authMW ...rest.MidFunc) {
+	handle("GET /widgets", h.query)
+	handle("GET /widgets/count", h.count)
+	// JSON:API variants (same data, application/vnd.api+json via to.JSONAPI).
+	handle("GET /widgets/jsonapi", h.queryJSONAPI)
+	handle("GET /widgets/jsonapi/{id}", h.queryByIDJSONAPI)
+	handle("GET /widgets/{id}", h.queryByID)
 
-	w := r
-	if len(authMW) > 0 {
-		w = r.With(authMW...)
-	}
-	w.HandleApp("POST /widgets", h.create)
-	w.HandleApp("POST /widgets/import", h.importBatch)
-	w.HandleApp("PUT /widgets/{id}", h.update)
-	w.HandleApp("DELETE /widgets/{id}", h.delete)
-	w.HandleApp("POST /widgets/{id}/translations", h.saveTranslation)
+	handle("POST /widgets", h.create, authMW...)
+	handle("POST /widgets/import", h.importBatch, authMW...)
+	handle("PUT /widgets/{id}", h.update, authMW...)
+	handle("DELETE /widgets/{id}", h.delete, authMW...)
+	handle("POST /widgets/{id}/translations", h.saveTranslation, authMW...)
 }
 
 // importBatch enqueues a batch of widgets for asynchronous bulk insertion by the
@@ -118,17 +120,22 @@ func (h *Handler) create(ctx context.Context, r *http.Request) rest.Encoder {
 //	@Success	200	{array}	Response
 //	@Router		/widgets [get]
 func (h *Handler) query(ctx context.Context, r *http.Request) rest.Encoder {
-	q := r.URL.Query()
-	pageNum, _ := strconv.Atoi(q.Get("page"))
-	rows, _ := strconv.Atoi(q.Get("rows"))
-
-	ws, err := h.core.Query(ctx, widgetcore.NewPage(pageNum, rows))
+	pg, err := page.Parse(r.URL.Query().Get("page"), r.URL.Query().Get("rows"))
+	if err != nil {
+		return errs.New(errs.InvalidArgument, err)
+	}
+	ws, err := h.core.Query(ctx, pg)
 	if err != nil {
 		return errs.From(err)
 	}
-	// Returned directly (not wrapped in rest.JSON) so the translationrest
-	// middleware can reach the items and translate them into the request language.
-	return toResponseList(ws)
+	total, err := h.core.Count(ctx)
+	if err != nil {
+		return errs.From(err)
+	}
+	// PagedResponse wraps query.Result and implements translation.TranslatableList,
+	// so the translationrest middleware still reaches and translates each item
+	// before the result (items + total + page) is encoded.
+	return PagedResponse{Result: query.NewResult(toResponseList(ws), total, pg)}
 }
 
 // count returns the cached total widget count. The value is refreshed in the
@@ -164,6 +171,47 @@ func (h *Handler) queryByID(ctx context.Context, r *http.Request) rest.Encoder {
 	}
 	// Returned directly so the translationrest middleware can translate it.
 	return toResponse(w)
+}
+
+// queryJSONAPI lists widgets as a JSON:API collection. It mirrors query but
+// returns the WidgetResource DTO (jsonapi-tagged) via to.JSONAPI, which builds
+// the application/vnd.api+json document. Content is canonical (the JSON:API
+// encoder is not wired into the per-record translation middleware).
+//
+//	@Summary	List widgets (JSON:API)
+//	@Tags		widgets
+//	@Produce	application/vnd.api+json
+//	@Router		/widgets/jsonapi [get]
+func (h *Handler) queryJSONAPI(ctx context.Context, r *http.Request) rest.Encoder {
+	pg, err := page.Parse(r.URL.Query().Get("page"), r.URL.Query().Get("rows"))
+	if err != nil {
+		return errs.New(errs.InvalidArgument, err)
+	}
+	ws, err := h.core.Query(ctx, pg)
+	if err != nil {
+		return errs.From(err)
+	}
+	return to.JSONAPI(toResourceList(ws))
+}
+
+// queryByIDJSONAPI returns a single widget as a JSON:API resource.
+//
+//	@Summary	Get a widget (JSON:API)
+//	@Tags		widgets
+//	@Produce	application/vnd.api+json
+//	@Param		id	path	string	true	"Widget ID"
+//	@Router		/widgets/jsonapi/{id} [get]
+func (h *Handler) queryByIDJSONAPI(ctx context.Context, r *http.Request) rest.Encoder {
+	id, err := uuid.Parse(rest.Param(r, "id"))
+	if err != nil {
+		return errs.Newf(errs.InvalidArgument, "invalid id %q", rest.Param(r, "id"))
+	}
+
+	w, err := h.core.QueryByID(ctx, id)
+	if err != nil {
+		return errs.From(err)
+	}
+	return to.JSONAPI(toResource(w))
 }
 
 // update applies a partial update to a widget.

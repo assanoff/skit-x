@@ -19,6 +19,7 @@ import (
 	"github.com/assanoff/servicekit/eventbus"
 	"github.com/assanoff/servicekit/logger"
 	"github.com/assanoff/servicekit/outbox"
+	"github.com/assanoff/servicekit/page"
 	"github.com/assanoff/servicekit/sqldb"
 )
 
@@ -32,7 +33,7 @@ type Store interface {
 	Update(ctx context.Context, w Widget) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	QueryByID(ctx context.Context, id uuid.UUID) (Widget, error)
-	Query(ctx context.Context, page Page) ([]Widget, error)
+	Query(ctx context.Context, pg page.Page) ([]Widget, error)
 	Count(ctx context.Context) (int, error)
 }
 
@@ -170,8 +171,8 @@ func (c *Core) QueryByID(ctx context.Context, id uuid.UUID) (Widget, error) {
 }
 
 // Query returns one page of widgets, newest first.
-func (c *Core) Query(ctx context.Context, page Page) ([]Widget, error) {
-	ws, err := c.store.Query(ctx, page)
+func (c *Core) Query(ctx context.Context, pg page.Page) ([]Widget, error) {
+	ws, err := c.store.Query(ctx, pg)
 	if err != nil {
 		return nil, errs.New(errs.Internal, err)
 	}

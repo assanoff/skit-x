@@ -68,12 +68,15 @@ func getWithLang(t *testing.T, srv *httptest.Server, path, lang string) map[stri
 	return out
 }
 
-// getListWithLang issues a GET with an X-Language header and decodes a JSON array.
+// getListWithLang issues a GET with an X-Language header and returns the items
+// of the paginated list envelope.
 func getListWithLang(t *testing.T, srv *httptest.Server, path, lang string) []map[string]any {
 	t.Helper()
-	var out []map[string]any
+	var out struct {
+		Items []map[string]any `json:"items"`
+	}
 	doLangReq(t, srv, path, lang, &out)
-	return out
+	return out.Items
 }
 
 // doLangReq performs a GET with the X-Language header and decodes the JSON body.

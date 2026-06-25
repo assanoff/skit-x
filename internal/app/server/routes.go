@@ -19,11 +19,14 @@ import (
 	"github.com/assanoff/servicekit/web/rest"
 	"github.com/assanoff/servicekit/web/router"
 
+	"github.com/assanoff/service-kit-x/internal/app/config"
 	"github.com/assanoff/service-kit-x/internal/app/deps"
 	"github.com/assanoff/service-kit-x/internal/app/reqctx"
 )
 
-// buildRouter constructs the HTTP handler. Cross-cutting middleware
+// buildRouter constructs the HTTP handler: it builds the router shell (the
+// global, cross-cutting middleware) and then hands it to Install, which
+// describes every route in one place. Cross-cutting middleware
 // (trace/access-log/i18n) is global; the request-scoped middleware (metrics,
 // timeout, body limit) is applied only to business routes via a sub-group, so
 // it does not wrap the debug routes — a request timeout would otherwise cut off
@@ -68,6 +71,19 @@ func buildRouter(ctx context.Context, d *deps.Deps, m *metrics.Metrics, debug *d
 		httplog.Middleware(log.Named("access"), httpLogOpts),
 	)
 
+	Install(ctx, r, d, m, debug)
+	return r
+}
+
+// Install describes every HTTP route on r. It is the single place that composes
+// the application's transports: it mounts the technical probes and debug routes,
+// builds the request-scoped business sub-group, and delegates each feature's
+// route registration to its Routes(handle, ...) method via the router's typed
+// registration seam (router.HandleApp, a rest.Handle). Feature handlers
+// therefore never depend
+// on the router type — Install owns route composition (grouping, middleware),
+// the feature owns its endpoints.
+func Install(ctx context.Context, r *router.Router, d *deps.Deps, m *metrics.Metrics, debug *debugsrv.Config) {
 	r.HandleFunc("GET /healthz", health.Liveness())
 	r.Handle("GET /readyz", readiness(d))
 
@@ -83,37 +99,44 @@ func buildRouter(ctx context.Context, d *deps.Deps, m *metrics.Metrics, debug *d
 	}
 
 	// Business endpoints carry the request-scoped middleware (HTTP metrics, per
-	// request timeout, body-size limit). Widget writes are protected with JWT
-	// auth + RBAC when auth is enabled; reads stay public.
+	// request timeout, body-size limit). handle is the registration seam handed
+	// to every feature: it inherits this sub-group's middleware and the router's
+	// app middleware.
 	api := r.With(
 		m.Middleware(),
 		mid.Timeout(d.Opts.HTTP.RequestTimeout),
 		mid.SizeLimit(d.Opts.HTTP.BodySizeLimit),
 	)
+	handle := api.HandleApp
 
-	var authMW []router.Middleware
+	// Authorization is per-route rest.MidFunc, passed to the writes that need it.
+	// Widget writes are protected with JWT auth + RBAC when auth is enabled; reads
+	// stay public. AuthenticateApp verifies the token and stores the principal;
+	// RequireRoleApp enforces the role — both return *errs.Error through the chain.
+	var authMW []rest.MidFunc
 	if d.Opts.Auth.Enabled {
-		authMW = []router.Middleware{
-			router.Middleware(auth.Authenticate(d.Verifier(ctx), log)),
-			router.Middleware(auth.RequireRole(d.Opts.Auth.RequiredRole)),
+		authMW = []rest.MidFunc{
+			auth.AuthenticateApp(d.Verifier(ctx)),
+			auth.RequireRoleApp(d.Opts.Auth.RequiredRole),
 		}
 	}
-	d.WidgetHandler(ctx).Routes(api, authMW...)
+	d.WidgetHandler(ctx).Routes(handle, authMW...)
 
 	// Audit-log read API (history / diff / changed-fields), mounted in one call.
 	// Reads are public here; pass authMW to restrict them to admins if needed.
-	auditrest.NewHandlers(d.AuditLog(ctx)).Routes(api)
+	auditrest.NewHandlers(d.AuditLog(ctx)).Routes(handle)
 
 	// Admin: trigger one compaction batch on demand. Protected by authMW when auth
 	// is enabled. Scheduled compaction is wired separately via the worker package
 	// (see app/server: a worker.Loop calling AuditLog.CompactBatch).
-	adminAudit := api
-	if len(authMW) > 0 {
-		adminAudit = api.With(authMW...)
-	}
-	a := d.Opts.Audit
-	adminAudit.HandleApp("POST /auditlog/compact", func(ctx context.Context, _ *http.Request) rest.Encoder {
-		res, err := d.AuditLog(ctx).CompactBatch(ctx, auditlog.CompactBatchOptions{
+	handle("POST /auditlog/compact", compactHandler(d.AuditLog(ctx), d.Opts.Audit), authMW...)
+}
+
+// compactHandler builds the on-demand audit-log compaction endpoint, closing over
+// the audit core and the configured compaction options.
+func compactHandler(core *auditlog.Core, a config.Audit) rest.HandlerFunc {
+	return func(ctx context.Context, _ *http.Request) rest.Encoder {
+		res, err := core.CompactBatch(ctx, auditlog.CompactBatchOptions{
 			Threshold: a.CompactThreshold,
 			Limit:     a.CompactLimit,
 			Compact: auditlog.CompactOptions{
@@ -126,9 +149,7 @@ func buildRouter(ctx context.Context, d *deps.Deps, m *metrics.Metrics, debug *d
 			return errs.New(errs.Internal, err)
 		}
 		return rest.JSON(map[string]int{"models": res.Models, "deleted": res.Deleted})
-	})
-
-	return r
+	}
 }
 
 // localizeErrors returns an app middleware that translates *errs.Error responses

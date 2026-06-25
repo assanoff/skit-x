@@ -30,7 +30,6 @@ import (
 
 	"github.com/assanoff/service-kit-x/core/widgetaudit"
 	"github.com/assanoff/service-kit-x/core/widgetimport"
-	widgetv1 "github.com/assanoff/service-kit-x/gen/widget/v1"
 	"github.com/assanoff/service-kit-x/internal/app/config"
 	"github.com/assanoff/service-kit-x/internal/app/deps"
 )
@@ -71,7 +70,7 @@ func New(ctx context.Context, opts config.ServerOpts, log *logger.Logger) (*App,
 		extra = append(extra, bw...)
 	}
 
-	gateway, err := buildGateway(ctx, opts, log)
+	gateway, err := buildGateway(ctx, opts, d, log)
 	if err != nil {
 		return nil, err
 	}
@@ -110,13 +109,16 @@ func New(ctx context.Context, opts config.ServerOpts, log *logger.Logger) (*App,
 // gRPC server, on its own port — or returns nil when the gateway or the gRPC
 // server it proxies to is disabled. The dialed gRPC connection is released via
 // the global closer on shutdown.
-func buildGateway(ctx context.Context, opts config.ServerOpts, log *logger.Logger) (worker.Runnable, error) {
+func buildGateway(ctx context.Context, opts config.ServerOpts, d *deps.Deps, log *logger.Logger) (worker.Runnable, error) {
 	if opts.Gateway.Addr == "" || opts.GRPC.Addr == "" {
 		return nil, nil
 	}
+	// The feature owns its generated gateway registrar behind the
+	// grpcgateway.HandlerRegistrar seam (widgetgrpc.Handler.RegisterGateway), so
+	// this orchestrator does not import the generated widgetv1 package.
 	gw, err := grpcgateway.New(ctx, grpcgateway.Config{
 		Endpoint: dialTarget(opts.GRPC.Addr),
-	}, widgetv1.RegisterWidgetServiceHandler)
+	}, d.WidgetGRPC(ctx).RegisterGateway)
 	if err != nil {
 		return nil, err
 	}
@@ -238,6 +240,9 @@ func buildGRPCServer(ctx context.Context, cfg config.GRPC, d *deps.Deps, m *metr
 		grpcserver.WithTracer(d.Tracer(ctx)),
 		grpcserver.WithMetrics(m.Registry),
 	)
-	widgetv1.RegisterWidgetServiceServer(gs.ServiceRegistrar(), d.WidgetGRPC(ctx))
+	// Each feature owns its generated RegisterXxxServer call behind the
+	// grpcserver.Service seam, so this orchestrator does not register services
+	// by hand — it just hands them the registrar (mirrors the REST Install).
+	gs.Install(d.WidgetGRPC(ctx))
 	return gs
 }

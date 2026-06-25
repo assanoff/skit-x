@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/assanoff/servicekit/query"
 	"github.com/assanoff/servicekit/translation"
 
 	widgetcore "github.com/assanoff/service-kit-x/core/widget"
@@ -91,6 +92,23 @@ func (l ResponseList) Encode() ([]byte, string, error) {
 	return b, "application/json", err
 }
 
+// PagedResponse is a page of widget responses: it embeds the SDK's
+// query.Result (items + total + page + rowsPerPage, and its Encode) and also
+// implements translation.TranslatableList over the items, so the translationrest
+// middleware still localizes each widget before the envelope is encoded.
+type PagedResponse struct {
+	query.Result[*Response]
+}
+
+// Translatables implements translation.TranslatableList.
+func (p PagedResponse) Translatables() []translation.Translatable {
+	out := make([]translation.Translatable, len(p.Items))
+	for i, r := range p.Items {
+		out[i] = r
+	}
+	return out
+}
+
 func toResponse(w widgetcore.Widget) *Response {
 	return &Response{
 		ID:          w.ID.String(),
@@ -105,6 +123,36 @@ func toResponseList(ws []widgetcore.Widget) ResponseList {
 	out := make(ResponseList, len(ws))
 	for i, w := range ws {
 		out[i] = toResponse(w)
+	}
+	return out
+}
+
+// Resource is the JSON:API representation of a widget. Its fields are tagged for
+// github.com/hashicorp/jsonapi, which assembles the document — the handler just
+// returns to.JSONAPI(resource). It is an alternative DTO to Response for clients
+// that speak JSON:API (see the /widgets/jsonapi endpoints).
+type Resource struct {
+	ID          string    `jsonapi:"primary,widgets"`
+	Name        string    `jsonapi:"attr,name"`
+	Description string    `jsonapi:"attr,description"`
+	CreatedAt   time.Time `jsonapi:"attr,createdAt,iso8601"`
+	UpdatedAt   time.Time `jsonapi:"attr,updatedAt,iso8601"`
+}
+
+func toResource(w widgetcore.Widget) *Resource {
+	return &Resource{
+		ID:          w.ID.String(),
+		Name:        w.Name,
+		Description: w.Description,
+		CreatedAt:   w.CreatedAt,
+		UpdatedAt:   w.UpdatedAt,
+	}
+}
+
+func toResourceList(ws []widgetcore.Widget) []*Resource {
+	out := make([]*Resource, len(ws))
+	for i, w := range ws {
+		out[i] = toResource(w)
 	}
 	return out
 }

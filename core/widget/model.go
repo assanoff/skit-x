@@ -44,38 +44,6 @@ type UpdateWidget struct {
 	Description *string
 }
 
-// Page describes a slice of a list result with a 1-based page number.
-type Page struct {
-	Number      int
-	RowsPerPage int
-}
-
-const (
-	defaultRowsPerPage = 50
-	maxRowsPerPage     = 500
-)
-
-// NewPage builds a Page, clamping to sane bounds: the page number is at least 1,
-// and rows-per-page falls in [1, maxRowsPerPage], defaulting when non-positive.
-func NewPage(number, rowsPerPage int) Page {
-	if number < 1 {
-		number = 1
-	}
-	switch {
-	case rowsPerPage <= 0:
-		rowsPerPage = defaultRowsPerPage
-	case rowsPerPage > maxRowsPerPage:
-		rowsPerPage = maxRowsPerPage
-	}
-	return Page{Number: number, RowsPerPage: rowsPerPage}
-}
-
-// DefaultPage is the first page at the default size.
-func DefaultPage() Page { return NewPage(1, defaultRowsPerPage) }
-
-// Offset is the 0-based row offset for the page.
-func (p Page) Offset() int { return (p.Number - 1) * p.RowsPerPage }
-
 // Created is the domain event emitted when a widget is created. It is a plain
 // payload type: the domain publishes it through outbox.Publisher and the
 // Registry (wired at startup) maps it to its transport route. Register it once
