@@ -4,6 +4,7 @@
 package widgetdb
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
@@ -12,19 +13,32 @@ import (
 
 	"github.com/assanoff/servicekit/logger"
 	"github.com/assanoff/servicekit/sqldb"
+	"github.com/assanoff/servicekit/sqldb/dialect"
 
 	"github.com/assanoff/service-kit-x/core/widget"
 )
 
 // Store implements widget.Store against Postgres.
 type Store struct {
-	log *logger.Logger
-	db  sqlx.ExtContext
+	log     *logger.Logger
+	db      sqlx.ExtContext
+	dialect dialect.Dialect
 }
 
+// Option customizes a Store.
+type Option func(*Store)
+
+// WithDialect overrides the SQL dialect used to compose engine-specific SQL
+// (pagination). Defaults to dialect.Postgres.
+func WithDialect(d dialect.Dialect) Option { return func(s *Store) { s.dialect = d } }
+
 // NewStore builds a Store. Pass a *sqlx.DB for pool-backed use.
-func NewStore(log *logger.Logger, db *sqlx.DB) *Store {
-	return &Store{log: log, db: db}
+func NewStore(log *logger.Logger, db *sqlx.DB, opts ...Option) *Store {
+	s := &Store{log: log, db: db, dialect: dialect.Postgres{}}
+	for _, o := range opts {
+		o(s)
+	}
+	return s
 }
 
 // Compile-time check that Store satisfies the domain contract.
@@ -33,7 +47,7 @@ var _ widget.Store = (*Store)(nil)
 // WithTx returns a sibling Store whose queries run on tx, so a widget write can
 // commit atomically with an outbox event.
 func (s *Store) WithTx(tx sqlx.ExtContext) widget.Store {
-	return &Store{log: s.log, db: tx}
+	return &Store{log: s.log, db: tx, dialect: s.dialect}
 }
 
 // Create implements widget.Store.
@@ -117,12 +131,22 @@ func (s *Store) Count(ctx context.Context) (int, error) {
 	return row.N, nil
 }
 
-// Query implements widget.Store.
-func (s *Store) Query(ctx context.Context) ([]widget.Widget, error) {
-	const q = `SELECT id, name, description, created_at, updated_at FROM widgets ORDER BY created_at DESC`
+// Query implements widget.Store. The pagination clause is composed via the
+// store's dialect, which keeps the engine-specific OFFSET/FETCH (Postgres) vs
+// LIMIT/OFFSET (SQLite) difference behind one seam; the clause binds :offset and
+// :rows_per_page supplied below.
+func (s *Store) Query(ctx context.Context, page widget.Page) ([]widget.Widget, error) {
+	var buf bytes.Buffer
+	buf.WriteString(`SELECT id, name, description, created_at, updated_at FROM widgets ORDER BY created_at DESC`)
+	s.dialect.Paginate(&buf)
+
+	data := struct {
+		Offset      int `db:"offset"`
+		RowsPerPage int `db:"rows_per_page"`
+	}{Offset: page.Offset(), RowsPerPage: page.RowsPerPage}
 
 	var rows []dbWidget
-	if err := sqldb.QuerySlice(ctx, s.log, s.db, q, &rows); err != nil {
+	if err := sqldb.NamedQuerySlice(ctx, s.log, s.db, buf.String(), data, &rows); err != nil {
 		return nil, fmt.Errorf("query: %w", err)
 	}
 	return toCoreWidgets(rows), nil

@@ -426,9 +426,11 @@ func (b0 GetWidgetResponse_builder) Build() *GetWidgetResponse {
 }
 
 type ListWidgetsRequest struct {
-	state         protoimpl.MessageState `protogen:"opaque.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Page     int32                  `protobuf:"varint,1,opt,name=page"`
+	xxx_hidden_PageSize int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ListWidgetsRequest) Reset() {
@@ -456,15 +458,43 @@ func (x *ListWidgetsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
+func (x *ListWidgetsRequest) GetPage() int32 {
+	if x != nil {
+		return x.xxx_hidden_Page
+	}
+	return 0
+}
+
+func (x *ListWidgetsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.xxx_hidden_PageSize
+	}
+	return 0
+}
+
+func (x *ListWidgetsRequest) SetPage(v int32) {
+	x.xxx_hidden_Page = v
+}
+
+func (x *ListWidgetsRequest) SetPageSize(v int32) {
+	x.xxx_hidden_PageSize = v
+}
+
 type ListWidgetsRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
+	// 1-based page number and page size; both default server-side when unset (0).
+	// Over the gateway these map to ?page= and ?page_size= query parameters.
+	Page     int32
+	PageSize int32
 }
 
 func (b0 ListWidgetsRequest_builder) Build() *ListWidgetsRequest {
 	m0 := &ListWidgetsRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
+	x.xxx_hidden_Page = b.Page
+	x.xxx_hidden_PageSize = b.PageSize
 	return m0
 }
 
@@ -843,8 +873,10 @@ const file_widget_v1_widget_proto_rawDesc = "" +
 	"\x10GetWidgetRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\">\n" +
 	"\x11GetWidgetResponse\x12)\n" +
-	"\x06widget\x18\x01 \x01(\v2\x11.widget.v1.WidgetR\x06widget\"\x14\n" +
-	"\x12ListWidgetsRequest\"B\n" +
+	"\x06widget\x18\x01 \x01(\v2\x11.widget.v1.WidgetR\x06widget\"E\n" +
+	"\x12ListWidgetsRequest\x12\x12\n" +
+	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\"B\n" +
 	"\x13ListWidgetsResponse\x12+\n" +
 	"\awidgets\x18\x01 \x03(\v2\x11.widget.v1.WidgetR\awidgets\"i\n" +
 	"\x13UpdateWidgetRequest\x12\x0e\n" +

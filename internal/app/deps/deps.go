@@ -1,6 +1,6 @@
 // Package deps wires the application's dependencies, mirroring the
 // lavka-promoaction app/deps layout: a Deps container of lazy dim.Provider
-// fields, an ordered Initializers slice, and InitDeps which runs each
+// fields and an ordered Initializers slice. The generic app.InitDeps runs each
 // initializer and registers its cleanup with the global closer (LIFO shutdown).
 package deps
 
@@ -8,11 +8,11 @@ import (
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/assanoff/servicekit/app"
 	"github.com/assanoff/servicekit/auditlog"
 	"github.com/assanoff/servicekit/auth"
 	"github.com/assanoff/servicekit/broker"
 	"github.com/assanoff/servicekit/broker/rabbitmq"
-	"github.com/assanoff/servicekit/closer"
 	"github.com/assanoff/servicekit/dim"
 	"github.com/assanoff/servicekit/eventbus"
 	"github.com/assanoff/servicekit/i18n"
@@ -54,7 +54,9 @@ type Deps struct {
 }
 
 // Initializers runs in order: infrastructure first, then core, then handlers.
-var Initializers = []func(*Deps) (dim.CleanupFunc, error){
+// It is plain data — a command needing only some dependencies passes a subset
+// (e.g. slices.Concat of named groups) to app.InitDeps.
+var Initializers = []app.Initializer[Deps]{
 	// Core infrastructure
 	initTracer,
 	initStore,
@@ -74,19 +76,4 @@ var Initializers = []func(*Deps) (dim.CleanupFunc, error){
 	// Handlers
 	initWidgetHandler,
 	initWidgetGRPC,
-}
-
-// InitDeps runs all initializers and registers their cleanups with the global
-// closer, which executes them LIFO on shutdown.
-func InitDeps(c *Deps, initializers []func(*Deps) (dim.CleanupFunc, error)) error {
-	for _, fn := range initializers {
-		cleanup, err := fn(c)
-		if err != nil {
-			return err
-		}
-		if cleanup != nil {
-			closer.Add(cleanup)
-		}
-	}
-	return nil
 }

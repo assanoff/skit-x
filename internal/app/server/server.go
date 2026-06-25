@@ -1,5 +1,5 @@
 // Package server assembles the application the lavka-promoaction way: it builds
-// the Deps container, runs deps.InitDeps (which registers resource cleanups with
+// the Deps container, runs app.InitDeps (which registers resource cleanups with
 // the global closer), then composes the enabled transports (REST, gRPC,
 // grpc-gateway, status) into a servicekit server.Set and supervises them via a
 // worker.Group. Each brick starts iff its Addr is set, so they run independently.
@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/assanoff/servicekit/app"
 	"github.com/assanoff/servicekit/broker/rabbitmq"
 	"github.com/assanoff/servicekit/closer"
 	"github.com/assanoff/servicekit/debugsrv"
@@ -209,7 +210,7 @@ func GRPCServer(ctx context.Context, opts config.ServerOpts, log *logger.Logger)
 // cleanups with the global closer).
 func initDeps(opts config.ServerOpts, log *logger.Logger) (*deps.Deps, error) {
 	d := &deps.Deps{Opts: opts, Logger: log}
-	if err := deps.InitDeps(d, deps.Initializers); err != nil {
+	if err := app.InitDeps(d, deps.Initializers); err != nil {
 		return nil, err
 	}
 	return d, nil

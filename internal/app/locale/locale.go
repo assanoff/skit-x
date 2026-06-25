@@ -1,17 +1,18 @@
-// Package locale embeds the example's message catalogs and builds the
-// servicekit i18n.Translator used to localize error responses.
+// Package locale embeds the example's message catalogs and exposes them for the
+// servicekit i18n.Translator (built via provider.Translator) used to localize
+// error responses. The app owns its message files; the SDK provider builds the
+// translator from them.
 package locale
 
-import (
-	"embed"
+import "embed"
 
-	"github.com/assanoff/servicekit/i18n"
-)
-
+// FS holds the embedded message catalogs (passed to provider.Translator).
+//
 //go:embed locales/en.json locales/ru.json
-var catalogs embed.FS
+var FS embed.FS
 
-// New builds the application translator (default English, plus Russian).
-func New() (*i18n.Translator, error) {
-	return i18n.New("en", catalogs, "locales/en.json", "locales/ru.json")
-}
+// DefaultLang is the catalog used when no better language match is found.
+const DefaultLang = "en"
+
+// Files are the embedded catalog paths within FS, passed to provider.Translator.
+var Files = []string{"locales/en.json", "locales/ru.json"}

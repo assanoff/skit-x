@@ -32,7 +32,7 @@ type Store interface {
 	Update(ctx context.Context, w Widget) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	QueryByID(ctx context.Context, id uuid.UUID) (Widget, error)
-	Query(ctx context.Context) ([]Widget, error)
+	Query(ctx context.Context, page Page) ([]Widget, error)
 	Count(ctx context.Context) (int, error)
 }
 
@@ -169,9 +169,9 @@ func (c *Core) QueryByID(ctx context.Context, id uuid.UUID) (Widget, error) {
 	return w, nil
 }
 
-// Query returns all widgets.
-func (c *Core) Query(ctx context.Context) ([]Widget, error) {
-	ws, err := c.store.Query(ctx)
+// Query returns one page of widgets, newest first.
+func (c *Core) Query(ctx context.Context, page Page) ([]Widget, error) {
+	ws, err := c.store.Query(ctx, page)
 	if err != nil {
 		return nil, errs.New(errs.Internal, err)
 	}

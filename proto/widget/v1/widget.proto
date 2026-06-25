@@ -44,7 +44,12 @@ message GetWidgetResponse {
   Widget widget = 1;
 }
 
-message ListWidgetsRequest {}
+message ListWidgetsRequest {
+  // 1-based page number and page size; both default server-side when unset (0).
+  // Over the gateway these map to ?page= and ?page_size= query parameters.
+  int32 page = 1;
+  int32 page_size = 2;
+}
 message ListWidgetsResponse {
   repeated Widget widgets = 1;
 }

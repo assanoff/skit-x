@@ -6,22 +6,18 @@ import (
 
 	"github.com/assanoff/servicekit/auth"
 	"github.com/assanoff/servicekit/dim"
-	"github.com/assanoff/servicekit/i18n"
+	"github.com/assanoff/servicekit/provider"
 
 	"github.com/assanoff/service-kit-x/internal/app/locale"
 )
 
-// initTranslator builds the i18n translator from the embedded catalogs. It is
-// always available — error responses are localized by Accept-Language.
-var initTranslator = func(c *Deps) (dim.CleanupFunc, error) {
-	tr, err := locale.New()
-	if err != nil {
-		return nil, fmt.Errorf("init translator: %w", err)
-	}
-	c.Translator = dim.OnceWithName("Translator", func(context.Context) (*i18n.Translator, error) {
-		return tr, nil
-	})
-	return nil, nil
+// initTranslator builds the i18n translator from the embedded catalogs via the
+// SDK's language-agnostic provider.Translator. It is always available — error
+// responses are localized by Accept-Language.
+var initTranslator = func(c *Deps) (cleanup dim.CleanupFunc, err error) {
+	c.Translator, cleanup = dim.NewResource("Translator",
+		provider.Translator(locale.DefaultLang, locale.FS, locale.Files...))
+	return cleanup, nil
 }
 
 // initAuth builds the JWT verifier when auth is enabled. Disabled => provider

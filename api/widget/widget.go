@@ -6,6 +6,7 @@ package widget
 import (
 	"context"
 	"net/http"
+	"strconv"
 
 	"github.com/google/uuid"
 
@@ -116,8 +117,12 @@ func (h *Handler) create(ctx context.Context, r *http.Request) rest.Encoder {
 //	@Produce	json
 //	@Success	200	{array}	Response
 //	@Router		/widgets [get]
-func (h *Handler) query(ctx context.Context, _ *http.Request) rest.Encoder {
-	ws, err := h.core.Query(ctx)
+func (h *Handler) query(ctx context.Context, r *http.Request) rest.Encoder {
+	q := r.URL.Query()
+	pageNum, _ := strconv.Atoi(q.Get("page"))
+	rows, _ := strconv.Atoi(q.Get("rows"))
+
+	ws, err := h.core.Query(ctx, widgetcore.NewPage(pageNum, rows))
 	if err != nil {
 		return errs.From(err)
 	}

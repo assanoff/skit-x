@@ -56,8 +56,8 @@ func (h *Handler) GetWidget(ctx context.Context, req *widgetv1.GetWidgetRequest)
 }
 
 // ListWidgets implements the gRPC WidgetService.
-func (h *Handler) ListWidgets(ctx context.Context, _ *widgetv1.ListWidgetsRequest) (*widgetv1.ListWidgetsResponse, error) {
-	ws, err := h.core.Query(ctx)
+func (h *Handler) ListWidgets(ctx context.Context, req *widgetv1.ListWidgetsRequest) (*widgetv1.ListWidgetsResponse, error) {
+	ws, err := h.core.Query(ctx, widget.NewPage(int(req.GetPage()), int(req.GetPageSize())))
 	if err != nil {
 		return nil, err
 	}

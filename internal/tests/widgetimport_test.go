@@ -122,7 +122,7 @@ func TestWidgetImportQueue(t *testing.T) {
 	const want = batches * perBatch
 	deadline := time.After(20 * time.Second)
 	for {
-		ws, err := store.Query(ctx)
+		ws, err := store.Query(ctx, widget.NewPage(1, want))
 		if err != nil {
 			t.Fatalf("query widgets: %v", err)
 		}
@@ -149,7 +149,7 @@ func TestWidgetImportQueue(t *testing.T) {
 	}
 
 	// Exactly the imported widgets, no duplicates (unique ids + ON CONFLICT).
-	ws, _ := store.Query(ctx)
+	ws, _ := store.Query(ctx, widget.NewPage(1, want))
 	if len(ws) != want {
 		t.Errorf("expected %d widgets, got %d", want, len(ws))
 	}
