@@ -14,6 +14,7 @@ import (
 
 	"github.com/assanoff/servicekit/errs"
 	"github.com/assanoff/servicekit/logger"
+	"github.com/assanoff/servicekit/order"
 	"github.com/assanoff/servicekit/page"
 	"github.com/assanoff/servicekit/sqldb"
 )
@@ -25,8 +26,9 @@ type Store interface {
 	Update(ctx context.Context, u User) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	QueryByID(ctx context.Context, id uuid.UUID) (User, error)
-	Query(ctx context.Context, pg page.Page) ([]User, error)
-	Count(ctx context.Context) (int, error)
+	Query(ctx context.Context, filter QueryFilter, by order.By, pg page.Page) ([]User, error)
+	QueryByCursor(ctx context.Context, filter QueryFilter, cur page.Cursor) (items []User, next string, err error)
+	Count(ctx context.Context, filter QueryFilter) (int, error)
 }
 
 // Core implements the user business logic.
@@ -69,18 +71,31 @@ func (c *Core) QueryByID(ctx context.Context, id uuid.UUID) (User, error) {
 	return u, nil
 }
 
-// Query returns one page of users, newest first.
-func (c *Core) Query(ctx context.Context, pg page.Page) ([]User, error) {
-	us, err := c.store.Query(ctx, pg)
+// Query returns one page of users matching filter, ordered by.
+func (c *Core) Query(ctx context.Context, filter QueryFilter, by order.By, pg page.Page) ([]User, error) {
+	us, err := c.store.Query(ctx, filter, by, pg)
 	if err != nil {
 		return nil, errs.New(errs.Internal, err)
 	}
 	return us, nil
 }
 
-// Count returns the total number of users.
-func (c *Core) Count(ctx context.Context) (int, error) {
-	n, err := c.store.Count(ctx)
+// QueryByCursor returns up to cur.Limit() users matching filter, newest-first,
+// starting after the keyset boundary the cursor encodes (the first page when its
+// token is empty), plus an opaque next-page cursor token — empty when there are
+// no more rows. Unlike Query (offset), it is stable under concurrent inserts and
+// stays cheap at any depth. Prev paging is not offered here (forward-only feed).
+func (c *Core) QueryByCursor(ctx context.Context, filter QueryFilter, cur page.Cursor) ([]User, string, error) {
+	us, next, err := c.store.QueryByCursor(ctx, filter, cur)
+	if err != nil {
+		return nil, "", errs.New(errs.Internal, err)
+	}
+	return us, next, nil
+}
+
+// Count returns the number of users matching filter.
+func (c *Core) Count(ctx context.Context, filter QueryFilter) (int, error) {
+	n, err := c.store.Count(ctx, filter)
 	if err != nil {
 		return 0, errs.New(errs.Internal, err)
 	}

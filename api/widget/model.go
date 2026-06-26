@@ -109,6 +109,24 @@ func (p PagedResponse) Translatables() []translation.Translatable {
 	return out
 }
 
+// CursorPagedResponse is a cursor (keyset) page of widget responses: it embeds
+// the SDK's query.CursorResult (items + next/prev tokens, and its Encode) and
+// implements translation.TranslatableList over the items, so the translationrest
+// middleware still localizes each widget before the envelope is encoded — the
+// keyset counterpart of PagedResponse.
+type CursorPagedResponse struct {
+	query.CursorResult[*Response]
+}
+
+// Translatables implements translation.TranslatableList.
+func (p CursorPagedResponse) Translatables() []translation.Translatable {
+	out := make([]translation.Translatable, len(p.Items))
+	for i, r := range p.Items {
+		out[i] = r
+	}
+	return out
+}
+
 func toResponse(w widgetcore.Widget) *Response {
 	return &Response{
 		ID:          w.ID.String(),

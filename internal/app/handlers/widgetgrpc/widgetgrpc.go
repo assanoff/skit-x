@@ -77,7 +77,9 @@ func (h *Handler) GetWidget(ctx context.Context, req *widgetv1.GetWidgetRequest)
 
 // ListWidgets implements the gRPC WidgetService.
 func (h *Handler) ListWidgets(ctx context.Context, req *widgetv1.ListWidgetsRequest) (*widgetv1.ListWidgetsResponse, error) {
-	ws, err := h.core.Query(ctx, page.New(int(req.GetPage()), int(req.GetPageSize())))
+	// gRPC ListWidgets has no filter/order fields, so it lists with an empty filter
+	// in the default order; the offset paging maps from page/page_size.
+	ws, err := h.core.Query(ctx, widget.QueryFilter{}, widget.DefaultOrder, page.New(int(req.GetPage()), int(req.GetPageSize())))
 	if err != nil {
 		return nil, err
 	}

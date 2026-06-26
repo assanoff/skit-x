@@ -29,7 +29,12 @@ func TestWidgetCountPoller(t *testing.T) {
 	store := widgetdb.NewStore(log, db)
 	core := widget.NewCore(log, store)
 
-	p := poller.New(log.Slog(), 0, core.Count, poller.Config{
+	// Count takes a filter; the poller caches the unfiltered total, so it passes
+	// the zero QueryFilter (matches every widget).
+	countAll := func(ctx context.Context) (int, error) {
+		return core.Count(ctx, widget.QueryFilter{})
+	}
+	p := poller.New(log.Slog(), 0, countAll, poller.Config{
 		Name:        "widget-count-test",
 		Interval:    100 * time.Millisecond,
 		PollTimeout: 2 * time.Second,

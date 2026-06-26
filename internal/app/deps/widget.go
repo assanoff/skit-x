@@ -55,7 +55,12 @@ var initWidgetImport = func(c *Deps) (dim.CleanupFunc, error) {
 var initWidgetCount = func(c *Deps) (dim.CleanupFunc, error) {
 	c.WidgetCount = dim.OnceWithName("WidgetCount", func(ctx context.Context) (*poller.Poller[int], error) {
 		core := c.WidgetCore(ctx)
-		return poller.New(c.Logger.Slog(), 0, core.Count, poller.Config{
+		// Count now takes a filter; the poller caches the unfiltered total, so it
+		// passes the zero QueryFilter (matches every widget).
+		countAll := func(ctx context.Context) (int, error) {
+			return core.Count(ctx, widget.QueryFilter{})
+		}
+		return poller.New(c.Logger.Slog(), 0, countAll, poller.Config{
 			Name:        "widget-count",
 			Interval:    c.Opts.Worker.CountInterval,
 			PollTimeout: 5 * time.Second,
@@ -68,7 +73,7 @@ var initWidgetCount = func(c *Deps) (dim.CleanupFunc, error) {
 // background-import endpoint and the cached-count endpoint.
 var initWidgetHandler = func(c *Deps) (dim.CleanupFunc, error) {
 	c.WidgetHandler = dim.OnceWithName("WidgetHandler", func(ctx context.Context) (*widgetapi.Handler, error) {
-		return widgetapi.New(c.WidgetCore(ctx), c.WidgetImport(ctx), c.WidgetCount(ctx), c.Translation(ctx)), nil
+		return widgetapi.New(c.WidgetCore(ctx), c.WidgetImport(ctx), c.WidgetCount(ctx), c.Translation(ctx), c.AuthVerifier(ctx), c.Opts.Auth.RequiredRole), nil
 	})
 	return nil, nil
 }

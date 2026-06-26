@@ -6,10 +6,15 @@ package widget
 import (
 	"context"
 	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 
+	"github.com/assanoff/servicekit/auth"
 	"github.com/assanoff/servicekit/errs"
+	"github.com/assanoff/servicekit/order"
 	"github.com/assanoff/servicekit/page"
 	"github.com/assanoff/servicekit/query"
 	"github.com/assanoff/servicekit/to"
@@ -26,37 +31,48 @@ type Counter interface {
 	Current() int
 }
 
-// Handler exposes widget endpoints.
+// Handler exposes widget endpoints. It holds the auth verifier (nil when auth is
+// disabled) and the required role so Routes can build its own write guard.
 type Handler struct {
 	core       *widgetcore.Core
 	importer   *widgetimport.Importer
 	counter    Counter
 	translator *translation.Translator
+	verifier   auth.Verifier
+	role       string
 }
 
-// New builds a Handler.
-func New(core *widgetcore.Core, importer *widgetimport.Importer, counter Counter, translator *translation.Translator) *Handler {
-	return &Handler{core: core, importer: importer, counter: counter, translator: translator}
+// New builds a Handler. verifier is nil when auth is disabled, in which case the
+// guard Routes builds is a no-op and every route stays public.
+func New(core *widgetcore.Core, importer *widgetimport.Importer, counter Counter, translator *translation.Translator, verifier auth.Verifier, role string) *Handler {
+	return &Handler{core: core, importer: importer, counter: counter, translator: translator, verifier: verifier, role: role}
 }
 
 // Routes registers the widget endpoints through the handle seam, so this
 // transport does not depend on the router type — the server's Install function
-// passes router.HandleApp. Reads are public; each write passes authMW (e.g.
-// JWT auth + RBAC, as rest.MidFunc) so it requires authorization when auth is
-// enabled, and is unguarded otherwise.
-func (h *Handler) Routes(handle rest.Handle, authMW ...rest.MidFunc) {
+// passes router.HandleApp. The signature is uniform across features (just the
+// seam): authorization is the feature's own concern here — it builds a write
+// guard from the injected verifier (auth.Guard) and attaches it to the writes.
+// Reads stay public; the guard is a no-op when auth is disabled.
+func (h *Handler) Routes(handle rest.Handle) {
+	guard := auth.Guard(h.verifier, h.role) // nil (public) when auth is disabled
+
 	handle("GET /widgets", h.query)
 	handle("GET /widgets/count", h.count)
+	// Keyset (cursor) pagination — the insert-stable, depth-cheap alternative to
+	// ?page/?rows offset paging. The literal /cursor segment is matched ahead of
+	// /{id} by net/http's pattern precedence.
+	handle("GET /widgets/cursor", h.queryCursor)
 	// JSON:API variants (same data, application/vnd.api+json via to.JSONAPI).
 	handle("GET /widgets/jsonapi", h.queryJSONAPI)
 	handle("GET /widgets/jsonapi/{id}", h.queryByIDJSONAPI)
 	handle("GET /widgets/{id}", h.queryByID)
 
-	handle("POST /widgets", h.create, authMW...)
-	handle("POST /widgets/import", h.importBatch, authMW...)
-	handle("PUT /widgets/{id}", h.update, authMW...)
-	handle("DELETE /widgets/{id}", h.delete, authMW...)
-	handle("POST /widgets/{id}/translations", h.saveTranslation, authMW...)
+	handle("POST /widgets", h.create, guard)
+	handle("POST /widgets/import", h.importBatch, guard)
+	handle("PUT /widgets/{id}", h.update, guard)
+	handle("DELETE /widgets/{id}", h.delete, guard)
+	handle("POST /widgets/{id}/translations", h.saveTranslation, guard)
 }
 
 // importBatch enqueues a batch of widgets for asynchronous bulk insertion by the
@@ -120,15 +136,22 @@ func (h *Handler) create(ctx context.Context, r *http.Request) rest.Encoder {
 //	@Success	200	{array}	Response
 //	@Router		/widgets [get]
 func (h *Handler) query(ctx context.Context, r *http.Request) rest.Encoder {
-	pg, err := page.Parse(r.URL.Query().Get("page"), r.URL.Query().Get("rows"))
+	q := r.URL.Query()
+	pg, err := page.Parse(q.Get("page"), q.Get("rows"))
 	if err != nil {
 		return errs.New(errs.InvalidArgument, err)
 	}
-	ws, err := h.core.Query(ctx, pg)
+	by, err := order.Parse(widgetcore.SortableFields, q.Get("order_by"), widgetcore.DefaultOrder)
+	if err != nil {
+		return errs.New(errs.InvalidArgument, err)
+	}
+	filter := parseWidgetFilter(q)
+
+	ws, err := h.core.Query(ctx, filter, by, pg)
 	if err != nil {
 		return errs.From(err)
 	}
-	total, err := h.core.Count(ctx)
+	total, err := h.core.Count(ctx, filter)
 	if err != nil {
 		return errs.From(err)
 	}
@@ -136,6 +159,41 @@ func (h *Handler) query(ctx context.Context, r *http.Request) rest.Encoder {
 	// so the translationrest middleware still reaches and translates each item
 	// before the result (items + total + page) is encoded.
 	return PagedResponse{Result: query.NewResult(toResponseList(ws), total, pg)}
+}
+
+// queryCursor lists widgets with keyset (cursor) pagination: ?cursor=<token> (the
+// opaque token from a prior page's next, empty for the first page), ?limit=N, and
+// the same ?name/?description filter. It returns a CursorPagedResponse (the
+// translatable counterpart of PagedResponse), so the translationrest middleware
+// still localizes each widget. Forward-only — prev is not emitted.
+func (h *Handler) queryCursor(ctx context.Context, r *http.Request) rest.Encoder {
+	q := r.URL.Query()
+	limit, _ := strconv.Atoi(q.Get("limit")) // 0/invalid -> NewCursor applies the default
+	cur := page.NewCursor(q.Get("cursor"), limit)
+	if _, err := cur.Key(); err != nil {
+		return errs.New(errs.InvalidArgument, err) // malformed cursor token -> 400
+	}
+	filter := parseWidgetFilter(q)
+
+	ws, next, err := h.core.QueryByCursor(ctx, filter, cur)
+	if err != nil {
+		return errs.From(err)
+	}
+	return CursorPagedResponse{CursorResult: query.NewCursorResult(toResponseList(ws), next, "")}
+}
+
+// parseWidgetFilter reads the optional listing filter from the query string:
+// ?name and ?description, each a case-insensitive substring. Absent params leave
+// that field nil (not applied).
+func parseWidgetFilter(q url.Values) widgetcore.QueryFilter {
+	var f widgetcore.QueryFilter
+	if name := strings.TrimSpace(q.Get("name")); name != "" {
+		f.Name = &name
+	}
+	if desc := strings.TrimSpace(q.Get("description")); desc != "" {
+		f.Description = &desc
+	}
+	return f
 }
 
 // count returns the cached total widget count. The value is refreshed in the
@@ -183,11 +241,17 @@ func (h *Handler) queryByID(ctx context.Context, r *http.Request) rest.Encoder {
 //	@Produce	application/vnd.api+json
 //	@Router		/widgets/jsonapi [get]
 func (h *Handler) queryJSONAPI(ctx context.Context, r *http.Request) rest.Encoder {
-	pg, err := page.Parse(r.URL.Query().Get("page"), r.URL.Query().Get("rows"))
+	q := r.URL.Query()
+	pg, err := page.Parse(q.Get("page"), q.Get("rows"))
 	if err != nil {
 		return errs.New(errs.InvalidArgument, err)
 	}
-	ws, err := h.core.Query(ctx, pg)
+	by, err := order.Parse(widgetcore.SortableFields, q.Get("order_by"), widgetcore.DefaultOrder)
+	if err != nil {
+		return errs.New(errs.InvalidArgument, err)
+	}
+
+	ws, err := h.core.Query(ctx, parseWidgetFilter(q), by, pg)
 	if err != nil {
 		return errs.From(err)
 	}

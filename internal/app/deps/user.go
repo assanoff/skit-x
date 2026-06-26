@@ -21,7 +21,7 @@ var initUserCore = func(c *Deps) (dim.CleanupFunc, error) {
 // initUserHandler builds the REST handler for users.
 var initUserHandler = func(c *Deps) (dim.CleanupFunc, error) {
 	c.UserHandler = dim.OnceWithName("UserHandler", func(ctx context.Context) (*userapi.Handler, error) {
-		return userapi.New(c.UserCore(ctx)), nil
+		return userapi.New(c.UserCore(ctx), c.AuthVerifier(ctx), c.Opts.Auth.RequiredRole), nil
 	})
 	return nil, nil
 }

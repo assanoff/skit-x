@@ -42,3 +42,16 @@ var initAuth = func(c *Deps) (dim.CleanupFunc, error) {
 	})
 	return nil, nil
 }
+
+// AuthVerifier resolves the JWT verifier, or nil when auth is disabled — the
+// Verifier provider is wired by initAuth only when Auth.Enabled, so a nil field
+// IS the off switch. Callers (handler constructors and the server's Install) pass
+// the result straight to auth.Guard; a nil verifier makes the guard a no-op, so
+// routes stay public. This is the one nil-safe accessor — never call the raw
+// c.Verifier provider directly, it panics (nil func) when auth is off.
+func (c *Deps) AuthVerifier(ctx context.Context) auth.Verifier {
+	if c.Verifier == nil {
+		return nil
+	}
+	return c.Verifier(ctx)
+}

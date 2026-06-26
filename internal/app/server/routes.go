@@ -18,6 +18,7 @@ import (
 	"github.com/assanoff/servicekit/web/rest"
 	"github.com/assanoff/servicekit/web/restmid"
 	"github.com/assanoff/servicekit/web/router"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/assanoff/service-kit-x/internal/app/config"
 	"github.com/assanoff/service-kit-x/internal/app/deps"
@@ -46,9 +47,10 @@ func buildRouter(ctx context.Context, d *deps.Deps, m *metrics.Metrics, debug *d
 	//     re-parsing headers.
 	//   - restmid.LocalizeErrors localizes any *errs.Error response into the
 	//     request language (resolved by reqctx.Language).
-	//   - restmid.MaskInternal (inside LocalizeErrors) hides 5xx error detail from
-	//     clients in production, logging the original server-side; in development
-	//     (Env != "production") it is a no-op so the detail stays visible.
+	//   - restmid.Chain bundles, in order: Metrics (errs-aware outcome counter) ->
+	//     LocalizeErrors -> MaskInternal (hides 5xx detail from clients in
+	//     production) -> Errors (records 5xx on the trace span + logs them) ->
+	//     Panics (turns a handler panic into a clean Internal error).
 	//   - translationrest translates per-record content: when a handler returns a
 	//     translation.Translatable (or TranslatableList) it applies the stored
 	//     translation in place — so widget read handlers stay translation-agnostic.
@@ -57,15 +59,16 @@ func buildRouter(ctx context.Context, d *deps.Deps, m *metrics.Metrics, debug *d
 	// background paths uniformly.
 	//
 	// The app middleware is assembled as: reqctx (outermost — parses the language
-	// before anything reads it) -> restmid.Chain (LocalizeErrors, MaskInternal) ->
-	// translationrest (innermost). Chain is the SDK-standard core; reqctx and
-	// translation are app-specific and wrap it.
+	// before anything reads it) -> restmid.Chain -> translationrest (innermost).
+	// Chain is the SDK-standard core; reqctx and translation are app-specific and
+	// wrap it.
 	appMids := []rest.MidFunc{reqctx.Middleware()}
 	appMids = append(appMids, restmid.Chain(restmid.Config{
 		Translator:   translator,
 		Lang:         reqctx.Language,
 		Logger:       log,
 		MaskInternal: d.Opts.Env == "production",
+		RecordMetric: errorOutcomeRecorder(m),
 	})...)
 	appMids = append(appMids, translationrest.MiddlewareWithLang(log, d.Translation(ctx), reqctx.Language))
 	r := router.New(appMids...)
@@ -122,38 +125,35 @@ func Install(ctx context.Context, r *router.Router, d *deps.Deps, m *metrics.Met
 	)
 	handle := api.HandleApp
 
-	// Authorization is per-route rest.MidFunc, passed to the writes that need it.
-	// Widget writes are protected with JWT auth + RBAC when auth is enabled; reads
-	// stay public. AuthenticateApp verifies the token and stores the principal;
-	// RequireRoleApp enforces the role — both return *errs.Error through the chain.
-	var authMW []rest.MidFunc
-	if d.Opts.Auth.Enabled {
-		authMW = []rest.MidFunc{
-			auth.AuthenticateApp(d.Verifier(ctx)),
-			auth.RequireRoleApp(d.Opts.Auth.RequiredRole),
-		}
-	}
-	d.WidgetHandler(ctx).Routes(handle, authMW...)
+	// Authorization is a single guard middleware: auth.Guard composes Authenticate
+	// + RequireRole (via rest.Chain) into one rest.MidFunc. d.AuthVerifier is nil
+	// when auth is disabled and auth.Guard then returns nil — a no-op the Handle
+	// seam skips — so no Auth.Enabled check is needed here: a nil guard leaves every
+	// route open. The same guard is applied at different levels: globally it would
+	// go on router.New; here it guards the whole product GROUP (WithApp) and a single
+	// HANDLER (the compact route), while widget and user build their own per-route
+	// guards inside Routes.
+	guard := auth.Guard(d.AuthVerifier(ctx), d.Opts.Auth.RequiredRole)
 
-	// user demonstrates per-route authorization: reads are public, each write
-	// gets authMW. So it receives the business group's handle directly and scopes
-	// auth itself, route by route.
-	d.UserHandler(ctx).Routes(handle, authMW...)
+	// widget and user take only the seam — the uniform Routes signature. They build
+	// their write guard from the injected verifier and attach it per route, so reads
+	// stay public and writes are guarded (this is the per-route level).
+	d.WidgetHandler(ctx).Routes(handle)
+	d.UserHandler(ctx).Routes(handle)
 
-	// product demonstrates group-scoped authorization: the whole product group —
-	// including reads — runs authMW. We wrap it once with WithApp (the typed-layer
-	// twin of With) and hand the feature that group's HandleApp; the feature adds
-	// no per-route auth of its own.
-	d.ProductHandler(ctx).Routes(api.WithApp(authMW...).HandleApp)
+	// product demonstrates the group level: the whole product group, including
+	// reads, is wrapped once with the guard via WithApp (the typed-layer twin of
+	// With), then handed that group's HandleApp. The feature adds no auth of its own.
+	d.ProductHandler(ctx).Routes(api.WithApp(guard).HandleApp)
 
 	// Audit-log read API (history / diff / changed-fields), mounted in one call.
-	// Reads are public here; pass authMW to restrict them to admins if needed.
+	// Reads are public here; pass guard to restrict them to admins if needed.
 	auditrest.NewHandlers(d.AuditLog(ctx)).Routes(handle)
 
-	// Admin: trigger one compaction batch on demand. Protected by authMW when auth
-	// is enabled. Scheduled compaction is wired separately via the worker package
-	// (see app/server: a worker.Loop calling AuditLog.CompactBatch).
-	handle("POST /auditlog/compact", compactHandler(d.AuditLog(ctx), d.Opts.Audit), authMW...)
+	// Admin: trigger one compaction batch on demand — a write, guarded at the
+	// single-HANDLER level. Scheduled compaction is wired separately via the worker
+	// package (see app/server: a worker.Loop calling AuditLog.CompactBatch).
+	handle("POST /auditlog/compact", compactHandler(d.AuditLog(ctx), d.Opts.Audit), guard)
 }
 
 // compactHandler builds the on-demand audit-log compaction endpoint, closing over
@@ -173,5 +173,22 @@ func compactHandler(core *auditlog.Core, a config.Audit) rest.HandlerFunc {
 			return errs.New(errs.Internal, err)
 		}
 		return rest.JSON(map[string]int{"models": res.Models, "deleted": res.Deleted})
+	}
+}
+
+// errorOutcomeRecorder registers an errs-aware outcome counter on the metrics
+// registry and returns the callback restmid.Metrics reports each request's code
+// to. Counts are labeled by domain code ("ok" for success), so /metrics exposes
+// the error rate by code, alongside the HTTP-status request metrics.
+func errorOutcomeRecorder(m *metrics.Metrics) func(code string) {
+	outcomes := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "servicekit",
+		Subsystem: "app",
+		Name:      "request_outcomes_total",
+		Help:      "Request outcomes by domain error code (ok for success).",
+	}, []string{"code"})
+	m.Registry.MustRegister(outcomes)
+	return func(code string) {
+		outcomes.WithLabelValues(code).Inc()
 	}
 }
