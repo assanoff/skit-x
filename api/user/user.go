@@ -1,5 +1,5 @@
 // Package user is the REST transport for the user module. It demonstrates the
-// per-route authorization pattern of the servicekit web layer: Routes builds a
+// per-route authorization pattern of the skit web layer: Routes builds a
 // write guard from the injected verifier (auth.Guard) and attaches it to the
 // write routes via the Handle seam, leaving reads public. The guard is a no-op
 // when auth is disabled, so writes are then open. Contrast the product module,
@@ -17,15 +17,15 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/assanoff/servicekit/auth"
-	"github.com/assanoff/servicekit/errs"
-	"github.com/assanoff/servicekit/order"
-	"github.com/assanoff/servicekit/page"
-	"github.com/assanoff/servicekit/query"
-	"github.com/assanoff/servicekit/web/rest"
-	"github.com/assanoff/servicekit/web/restmid"
+	"github.com/assanoff/skit/auth"
+	"github.com/assanoff/skit/errs"
+	"github.com/assanoff/skit/order"
+	"github.com/assanoff/skit/page"
+	"github.com/assanoff/skit/query"
+	"github.com/assanoff/skit/rest"
+	"github.com/assanoff/skit/rest/restmid"
 
-	usercore "github.com/assanoff/service-kit-x/core/user"
+	usercore "github.com/assanoff/skit-x/core/user"
 )
 
 // Handler exposes user endpoints. It holds the auth verifier (nil when auth is

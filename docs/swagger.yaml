@@ -80,7 +80,7 @@ externalDocs:
   url: ""
 info:
   description: Widget service — the REST contract consumed by other services.
-  title: service-kit-x API
+  title: skit-x API
   version: "1.0"
 openapi: 3.1.0
 paths:

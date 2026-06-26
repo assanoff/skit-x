@@ -3,11 +3,11 @@ package deps
 import (
 	"context"
 
-	"github.com/assanoff/servicekit/dim"
+	"github.com/assanoff/skit/dim"
 
-	userapi "github.com/assanoff/service-kit-x/api/user"
-	"github.com/assanoff/service-kit-x/core/user"
-	"github.com/assanoff/service-kit-x/core/user/userdb"
+	userapi "github.com/assanoff/skit-x/api/user"
+	"github.com/assanoff/skit-x/core/user"
+	"github.com/assanoff/skit-x/core/user/userdb"
 )
 
 // initUserCore builds the user business core over the Postgres store.

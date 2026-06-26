@@ -8,15 +8,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/assanoff/servicekit/dbx"
-	"github.com/assanoff/servicekit/logger"
-	"github.com/assanoff/servicekit/page"
-	"github.com/assanoff/servicekit/queue"
-	"github.com/assanoff/servicekit/worker"
+	"github.com/assanoff/skit/dbx"
+	"github.com/assanoff/skit/logger"
+	"github.com/assanoff/skit/page"
+	"github.com/assanoff/skit/queue"
+	"github.com/assanoff/skit/worker"
 
-	"github.com/assanoff/service-kit-x/core/widget"
-	"github.com/assanoff/service-kit-x/core/widget/widgetdb"
-	"github.com/assanoff/service-kit-x/core/widgetimport"
+	"github.com/assanoff/skit-x/core/widget"
+	"github.com/assanoff/skit-x/core/widget/widgetdb"
+	"github.com/assanoff/skit-x/core/widgetimport"
 )
 
 // TestWidgetImportEndpoint exercises the REST -> queue path: POST /widgets/import

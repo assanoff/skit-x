@@ -9,11 +9,11 @@ import (
 	"os"
 	"strings"
 
-	skconfig "github.com/assanoff/servicekit/config"
-	"github.com/assanoff/servicekit/logger"
-	skotel "github.com/assanoff/servicekit/otel"
+	skconfig "github.com/assanoff/skit/config"
+	"github.com/assanoff/skit/logger"
+	skotel "github.com/assanoff/skit/otel"
 
-	"github.com/assanoff/service-kit-x/internal/app/config"
+	"github.com/assanoff/skit-x/internal/app/config"
 )
 
 // Opts declares the available subcommands.

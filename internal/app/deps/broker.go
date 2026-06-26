@@ -3,10 +3,10 @@ package deps
 import (
 	"context"
 
-	"github.com/assanoff/servicekit/broker"
-	"github.com/assanoff/servicekit/broker/rabbitmq"
-	"github.com/assanoff/servicekit/dim"
-	"github.com/assanoff/servicekit/outbox"
+	"github.com/assanoff/skit/broker"
+	"github.com/assanoff/skit/broker/rabbitmq"
+	"github.com/assanoff/skit/dim"
+	"github.com/assanoff/skit/outbox"
 )
 
 // initBroker dials RabbitMQ and builds the publisher + outbox store when the

@@ -1,6 +1,6 @@
 // Package productdb is the Postgres implementation of product.Store, following
 // the SDK pg-store convention (inline const queries, a model.go row type,
-// dialect-composed pagination) and the servicekit dbx helpers.
+// dialect-composed pagination) and the skit dbx helpers.
 package productdb
 
 import (
@@ -13,13 +13,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 
-	"github.com/assanoff/servicekit/dbx"
-	"github.com/assanoff/servicekit/dbx/dialect"
-	"github.com/assanoff/servicekit/logger"
-	"github.com/assanoff/servicekit/order"
-	"github.com/assanoff/servicekit/page"
+	"github.com/assanoff/skit/dbx"
+	"github.com/assanoff/skit/dbx/dialect"
+	"github.com/assanoff/skit/logger"
+	"github.com/assanoff/skit/order"
+	"github.com/assanoff/skit/page"
 
-	"github.com/assanoff/service-kit-x/core/product"
+	"github.com/assanoff/skit-x/core/product"
 )
 
 // Store implements product.Store against Postgres.

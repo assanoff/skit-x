@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/assanoff/service-kit-x/core/widget"
+	"github.com/assanoff/skit-x/core/widget"
 )
 
 // dbWidget is the database representation of a widget.

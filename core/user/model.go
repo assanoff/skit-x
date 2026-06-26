@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/assanoff/servicekit/order"
+	"github.com/assanoff/skit/order"
 )
 
 // User is the domain entity.

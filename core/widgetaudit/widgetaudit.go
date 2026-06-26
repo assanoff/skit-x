@@ -13,10 +13,10 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/assanoff/servicekit/broker"
-	"github.com/assanoff/servicekit/dbx"
-	"github.com/assanoff/servicekit/logger"
-	"github.com/assanoff/servicekit/otel"
+	"github.com/assanoff/skit/broker"
+	"github.com/assanoff/skit/dbx"
+	"github.com/assanoff/skit/logger"
+	"github.com/assanoff/skit/otel"
 )
 
 // Recorder persists received events to the audit log.

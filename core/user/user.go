@@ -1,5 +1,5 @@
 // Package user is an example business module: a clean REST CRUD vertical (no
-// outbox/eventbus/audit) that demonstrates the servicekit web architecture. The
+// outbox/eventbus/audit) that demonstrates the skit web architecture. The
 // Core holds business logic and depends only on the Store interface declared
 // here; the concrete Postgres implementation lives in the nested userdb package,
 // keeping the domain testable and storage-agnostic.
@@ -12,11 +12,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/assanoff/servicekit/dbx"
-	"github.com/assanoff/servicekit/errs"
-	"github.com/assanoff/servicekit/logger"
-	"github.com/assanoff/servicekit/order"
-	"github.com/assanoff/servicekit/page"
+	"github.com/assanoff/skit/dbx"
+	"github.com/assanoff/skit/errs"
+	"github.com/assanoff/skit/logger"
+	"github.com/assanoff/skit/order"
+	"github.com/assanoff/skit/page"
 )
 
 // Store is the persistence contract for users. The Core depends on this

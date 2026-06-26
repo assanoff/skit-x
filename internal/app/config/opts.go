@@ -8,7 +8,7 @@ import "time"
 // ServerOpts is the full application configuration. Groups are namespaced so
 // their env vars read as HTTP_ADDR, GRPC_ADDR, DB_USER, OTEL_ENABLED, etc.
 type ServerOpts struct {
-	Service  string `long:"service-name" env:"SERVICE_NAME" default:"servicekit-example" description:"service name"`
+	Service  string `long:"service-name" env:"SERVICE_NAME" default:"skit-example" description:"service name"`
 	Env      string `long:"app-env"      env:"APP_ENV"      default:"development"         description:"runtime environment"`
 	LogLevel string `long:"log-level"    env:"LOG_LEVEL"    default:"info"                description:"log level: debug|info|warn|error"`
 
@@ -67,7 +67,7 @@ type DB struct {
 	User         string `long:"user"           env:"USER"           default:"postgres"   description:"postgres user"            json:"-"`
 	Password     string `long:"password"       env:"PASSWORD"       default:"postgres"   description:"postgres password"        json:"-"`
 	Host         string `long:"host"           env:"HOST"           default:"localhost:5432" description:"postgres host:port"   json:"-"`
-	Name         string `long:"name"           env:"NAME"           default:"servicekit" description:"postgres database name"   json:"-"`
+	Name         string `long:"name"           env:"NAME"           default:"skit" description:"postgres database name"   json:"-"`
 	Schema       string `long:"schema"         env:"SCHEMA"         default:"public"     description:"postgres schema"          json:"-"`
 	MaxIdleConns int    `long:"max-idle-conns" env:"MAX_IDLE_CONNS" default:"5"          description:"max idle connections"`
 	MaxOpenConns int    `long:"max-open-conns" env:"MAX_OPEN_CONNS" default:"20"         description:"max open connections"`
@@ -94,10 +94,10 @@ type Broker struct {
 	Password   string `long:"password"    env:"PASSWORD"    default:"guest"            description:"rabbitmq password"    json:"-"`
 	Host       string `long:"host"        env:"HOST"        default:"localhost"        description:"rabbitmq host"`
 	Port       string `long:"port"        env:"PORT"        default:"5672"             description:"rabbitmq port"`
-	Source     string `long:"source"      env:"SOURCE"      default:"servicekit-example" description:"CloudEvents source"`
-	Exchange   string `long:"exchange"    env:"EXCHANGE"    default:"servicekit.widgets" description:"widget events exchange"`
+	Source     string `long:"source"      env:"SOURCE"      default:"skit-example" description:"CloudEvents source"`
+	Exchange   string `long:"exchange"    env:"EXCHANGE"    default:"skit.widgets" description:"widget events exchange"`
 	RoutingKey string `long:"routing-key" env:"ROUTING_KEY" default:"widget.created"   description:"widget.created routing key"`
-	Queue      string `long:"queue"       env:"QUEUE"       default:"servicekit.widget-audit" description:"consumer queue"`
+	Queue      string `long:"queue"       env:"QUEUE"       default:"skit.widget-audit" description:"consumer queue"`
 }
 
 // Auth holds JWT authentication settings for widget write endpoints. Off by

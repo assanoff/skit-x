@@ -3,11 +3,11 @@ package deps
 import (
 	"context"
 
-	"github.com/assanoff/servicekit/dim"
+	"github.com/assanoff/skit/dim"
 
-	productapi "github.com/assanoff/service-kit-x/api/product"
-	"github.com/assanoff/service-kit-x/core/product"
-	"github.com/assanoff/service-kit-x/core/product/productdb"
+	productapi "github.com/assanoff/skit-x/api/product"
+	"github.com/assanoff/skit-x/core/product"
+	"github.com/assanoff/skit-x/core/product/productdb"
 )
 
 // initProductCore builds the product business core over the Postgres store.

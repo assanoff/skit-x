@@ -3,9 +3,9 @@ package productdb
 import (
 	"fmt"
 
-	"github.com/assanoff/servicekit/order"
+	"github.com/assanoff/skit/order"
 
-	"github.com/assanoff/service-kit-x/core/product"
+	"github.com/assanoff/skit-x/core/product"
 )
 
 // orderByFields maps product's allowlisted order-by field names to SQL columns —

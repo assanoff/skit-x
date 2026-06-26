@@ -877,7 +877,7 @@ const file_widget_v1_widget_proto_rawDesc = "" +
 	"\tGetWidget\x12\x1b.widget.v1.GetWidgetRequest\x1a\x1c.widget.v1.GetWidgetResponse\"\x18\x82\xd3\xe4\x93\x02\x12\x12\x10/v1/widgets/{id}\x12a\n" +
 	"\vListWidgets\x12\x1d.widget.v1.ListWidgetsRequest\x1a\x1e.widget.v1.ListWidgetsResponse\"\x13\x82\xd3\xe4\x93\x02\r\x12\v/v1/widgets\x12l\n" +
 	"\fUpdateWidget\x12\x1e.widget.v1.UpdateWidgetRequest\x1a\x1f.widget.v1.UpdateWidgetResponse\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*2\x10/v1/widgets/{id}\x12i\n" +
-	"\fDeleteWidget\x12\x1e.widget.v1.DeleteWidgetRequest\x1a\x1f.widget.v1.DeleteWidgetResponse\"\x18\x82\xd3\xe4\x93\x02\x12*\x10/v1/widgets/{id}BDZ8github.com/assanoff/service-kit-x/gen/widget/v1;widgetv1\x92\x03\a\xd2>\x02\x10\x02\b\x02b\beditionsp\xe8\a"
+	"\fDeleteWidget\x12\x1e.widget.v1.DeleteWidgetRequest\x1a\x1f.widget.v1.DeleteWidgetResponse\"\x18\x82\xd3\xe4\x93\x02\x12*\x10/v1/widgets/{id}B=Z1github.com/assanoff/skit-x/gen/widget/v1;widgetv1\x92\x03\a\xd2>\x02\x10\x02\b\x02b\beditionsp\xe8\a"
 
 var file_widget_v1_widget_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_widget_v1_widget_proto_goTypes = []any{

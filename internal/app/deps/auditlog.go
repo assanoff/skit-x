@@ -3,10 +3,10 @@ package deps
 import (
 	"context"
 
-	"github.com/assanoff/servicekit/auditlog"
-	"github.com/assanoff/servicekit/auditlog/auditbus"
-	auditdb "github.com/assanoff/servicekit/auditlog/db"
-	"github.com/assanoff/servicekit/dim"
+	"github.com/assanoff/skit/auditlog"
+	"github.com/assanoff/skit/auditlog/auditbus"
+	auditdb "github.com/assanoff/skit/auditlog/db"
+	"github.com/assanoff/skit/dim"
 )
 
 // initAuditLog builds the audit-log core over its Postgres store and subscribes it

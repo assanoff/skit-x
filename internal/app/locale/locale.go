@@ -1,5 +1,5 @@
 // Package locale embeds the example's message catalogs and exposes them for the
-// servicekit i18n.Translator (built via provider.Translator) used to localize
+// skit i18n.Translator (built via provider.Translator) used to localize
 // error responses. The app owns its message files; the SDK provider builds the
 // translator from them.
 package locale

@@ -14,9 +14,9 @@ import (
 
 	"github.com/matryer/is"
 
-	"github.com/assanoff/servicekit/logger"
+	"github.com/assanoff/skit/logger"
 
-	"github.com/assanoff/service-kit-x/internal/app/server"
+	"github.com/assanoff/skit-x/internal/app/server"
 )
 
 // TestProductCRUD exercises the product module end to end (auth disabled by

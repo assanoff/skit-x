@@ -6,9 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/assanoff/servicekit/web/rest"
+	"github.com/assanoff/skit/rest"
 
-	"github.com/assanoff/service-kit-x/internal/app/reqctx"
+	"github.com/assanoff/skit-x/internal/app/reqctx"
 )
 
 func TestMiddlewareParsesHeaders(t *testing.T) {

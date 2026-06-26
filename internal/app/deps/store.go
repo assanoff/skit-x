@@ -3,10 +3,10 @@ package deps
 import (
 	"context"
 
-	"github.com/assanoff/servicekit/dbx"
-	"github.com/assanoff/servicekit/dim"
-	"github.com/assanoff/servicekit/provider"
-	"github.com/assanoff/servicekit/queue"
+	"github.com/assanoff/skit/dbx"
+	"github.com/assanoff/skit/dim"
+	"github.com/assanoff/skit/provider"
+	"github.com/assanoff/skit/queue"
 )
 
 // initStore initializes the Postgres connection pool and assigns it to the

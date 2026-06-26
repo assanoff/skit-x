@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/assanoff/servicekit/query"
-	"github.com/assanoff/servicekit/translation"
+	"github.com/assanoff/skit/query"
+	"github.com/assanoff/skit/translation"
 
-	widgetcore "github.com/assanoff/service-kit-x/core/widget"
+	widgetcore "github.com/assanoff/skit-x/core/widget"
 )
 
 // CreateWidgetReq is the request body for creating a single widget.

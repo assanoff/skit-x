@@ -1,9 +1,9 @@
-module github.com/assanoff/service-kit-x
+module github.com/assanoff/skit-x
 
 go 1.26
 
 require (
-	github.com/assanoff/servicekit v0.0.0
+	github.com/assanoff/skit v0.0.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0
@@ -110,5 +110,5 @@ require (
 )
 
 // Local development: resolve the SDK from the parent directory. Remove (or
-// pin to a tag) once servicekit is published.
-replace github.com/assanoff/servicekit => ../go-web-sdk
+// pin to a tag) once skit is published.
+replace github.com/assanoff/skit => ../skit

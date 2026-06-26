@@ -13,11 +13,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/assanoff/servicekit/errs"
-	"github.com/assanoff/servicekit/page"
+	"github.com/assanoff/skit/errs"
+	"github.com/assanoff/skit/page"
 
-	"github.com/assanoff/service-kit-x/core/widget"
-	widgetv1 "github.com/assanoff/service-kit-x/gen/widget/v1"
+	"github.com/assanoff/skit-x/core/widget"
+	widgetv1 "github.com/assanoff/skit-x/gen/widget/v1"
 )
 
 // Handler implements widgetv1.WidgetServiceServer.

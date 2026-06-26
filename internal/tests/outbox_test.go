@@ -10,12 +10,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 
-	"github.com/assanoff/servicekit/dbx"
-	"github.com/assanoff/servicekit/logger"
-	"github.com/assanoff/servicekit/outbox"
-	"github.com/assanoff/servicekit/worker"
+	"github.com/assanoff/skit/dbx"
+	"github.com/assanoff/skit/logger"
+	"github.com/assanoff/skit/outbox"
+	"github.com/assanoff/skit/worker"
 
-	"github.com/assanoff/service-kit-x/internal/app/config"
+	"github.com/assanoff/skit-x/internal/app/config"
 )
 
 // TestOutboxStoreFSM drives the outbox Store through its full FSM against a real

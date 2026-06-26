@@ -1,5 +1,5 @@
 // Package widget is the REST transport layer for the widget module. Handlers
-// are servicekit rest.HandlerFunc values: they decode/validate input, call the
+// are skit rest.HandlerFunc values: they decode/validate input, call the
 // Core, and return a ResponseEncoder (a DTO or an *errs.Error).
 package widget
 
@@ -12,17 +12,17 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/assanoff/servicekit/auth"
-	"github.com/assanoff/servicekit/errs"
-	"github.com/assanoff/servicekit/order"
-	"github.com/assanoff/servicekit/page"
-	"github.com/assanoff/servicekit/query"
-	"github.com/assanoff/servicekit/to"
-	"github.com/assanoff/servicekit/translation"
-	"github.com/assanoff/servicekit/web/rest"
+	"github.com/assanoff/skit/auth"
+	"github.com/assanoff/skit/errs"
+	"github.com/assanoff/skit/order"
+	"github.com/assanoff/skit/page"
+	"github.com/assanoff/skit/query"
+	"github.com/assanoff/skit/rest"
+	"github.com/assanoff/skit/to"
+	"github.com/assanoff/skit/translation"
 
-	widgetcore "github.com/assanoff/service-kit-x/core/widget"
-	"github.com/assanoff/service-kit-x/core/widgetimport"
+	widgetcore "github.com/assanoff/skit-x/core/widget"
+	"github.com/assanoff/skit-x/core/widgetimport"
 )
 
 // Counter reports a cached widget count. It is satisfied by a poller.Poller[int],

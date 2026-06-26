@@ -14,23 +14,23 @@ import (
 	"strings"
 	"time"
 
-	"github.com/assanoff/servicekit/app"
-	"github.com/assanoff/servicekit/broker/rabbitmq"
-	"github.com/assanoff/servicekit/closer"
-	"github.com/assanoff/servicekit/debugsrv"
-	"github.com/assanoff/servicekit/grpcgateway"
-	"github.com/assanoff/servicekit/grpcserver"
-	"github.com/assanoff/servicekit/health"
-	"github.com/assanoff/servicekit/logger"
-	"github.com/assanoff/servicekit/metrics"
-	"github.com/assanoff/servicekit/outbox"
-	"github.com/assanoff/servicekit/web/httpserver"
-	"github.com/assanoff/servicekit/worker"
+	"github.com/assanoff/skit/app"
+	"github.com/assanoff/skit/broker/rabbitmq"
+	"github.com/assanoff/skit/closer"
+	"github.com/assanoff/skit/debugsrv"
+	"github.com/assanoff/skit/grpcgateway"
+	"github.com/assanoff/skit/grpcserver"
+	"github.com/assanoff/skit/health"
+	"github.com/assanoff/skit/httpserver"
+	"github.com/assanoff/skit/logger"
+	"github.com/assanoff/skit/metrics"
+	"github.com/assanoff/skit/outbox"
+	"github.com/assanoff/skit/worker"
 
-	"github.com/assanoff/service-kit-x/core/widgetaudit"
-	"github.com/assanoff/service-kit-x/core/widgetimport"
-	"github.com/assanoff/service-kit-x/internal/app/config"
-	"github.com/assanoff/service-kit-x/internal/app/deps"
+	"github.com/assanoff/skit-x/core/widgetaudit"
+	"github.com/assanoff/skit-x/core/widgetimport"
+	"github.com/assanoff/skit-x/internal/app/config"
+	"github.com/assanoff/skit-x/internal/app/deps"
 )
 
 // App is the assembled application: the flat set of supervised runnables —
@@ -46,13 +46,14 @@ func New(ctx context.Context, opts config.ServerOpts, log *logger.Logger) (*App,
 	if err != nil {
 		return nil, err
 	}
-	m := metrics.New("servicekit")
+	m := metrics.New("skit")
 
 	// Extra runnables: background workers + (optionally) the broker pipeline.
 	// They are supervised alongside the servers, appended after the transports.
 	var extra []worker.Runnable
 	if !opts.Worker.Disabled {
-		extra = append(extra,
+		extra = append(
+			extra,
 			d.WidgetImport(ctx).NewLoop(widgetimport.Config{
 				Interval:  opts.Worker.Interval,
 				BatchSize: opts.Worker.BatchSize,
@@ -165,7 +166,7 @@ func readiness(d *deps.Deps) http.Handler {
 // publish->consume pipeline, returning them as runnables for the supervised set.
 // Outbox metrics are registered on the shared registry m, so they sit alongside
 // the HTTP/gRPC and any business metrics on the same /metrics endpoint without
-// colliding (distinct servicekit_outbox_* names).
+// colliding (distinct skit_outbox_* names).
 func brokerWorkers(ctx context.Context, opts config.ServerOpts, d *deps.Deps, m *metrics.Metrics) ([]worker.Runnable, error) {
 	ob := d.Outbox(ctx)
 	om := outbox.NewMetrics(m.Registry)
@@ -207,7 +208,7 @@ func Handler(ctx context.Context, opts config.ServerOpts, log *logger.Logger) (h
 	if err != nil {
 		return nil, err
 	}
-	return buildRouter(ctx, d, metrics.New("servicekit"), nil), nil
+	return buildRouter(ctx, d, metrics.New("skit"), nil), nil
 }
 
 // GRPCServer builds the gRPC server with the widget service registered.
@@ -217,7 +218,7 @@ func GRPCServer(ctx context.Context, opts config.ServerOpts, log *logger.Logger)
 	if err != nil {
 		return nil, err
 	}
-	return buildGRPCServer(ctx, opts.GRPC, d, metrics.New("servicekit")), nil
+	return buildGRPCServer(ctx, opts.GRPC, d, metrics.New("skit")), nil
 }
 
 // initDeps builds the Deps container and runs the initializers (registering
@@ -237,7 +238,7 @@ func buildGRPCServer(ctx context.Context, cfg config.GRPC, d *deps.Deps, m *metr
 			Addr:             cfg.Addr,
 			ShutdownTimeout:  cfg.ShutdownTimeout,
 			EnableReflection: cfg.Reflection,
-			MetricsNamespace: "servicekit",
+			MetricsNamespace: "skit",
 			// Performance: messages use the protobuf Opaque API (edition 2023);
 			// tune transport here.
 			MaxRecvMsgSize:    cfg.MaxRecvMiB * miB,

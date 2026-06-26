@@ -3,9 +3,9 @@ package widgetdb
 import (
 	"fmt"
 
-	"github.com/assanoff/servicekit/order"
+	"github.com/assanoff/skit/order"
 
-	"github.com/assanoff/service-kit-x/core/widget"
+	"github.com/assanoff/skit-x/core/widget"
 )
 
 // orderByFields maps widget's allowlisted order-by field names to SQL columns —

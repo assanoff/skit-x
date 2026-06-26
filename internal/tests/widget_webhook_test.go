@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/assanoff/servicekit/eventbus"
-	"github.com/assanoff/servicekit/httpmw"
-	"github.com/assanoff/servicekit/logger"
-	"github.com/assanoff/servicekit/worker"
+	"github.com/assanoff/skit/eventbus"
+	"github.com/assanoff/skit/httpmw"
+	"github.com/assanoff/skit/logger"
+	"github.com/assanoff/skit/worker"
 
-	"github.com/assanoff/service-kit-x/core/widget"
-	"github.com/assanoff/service-kit-x/core/widget/widgetdb"
-	"github.com/assanoff/service-kit-x/core/widgetwebhook"
+	"github.com/assanoff/skit-x/core/widget"
+	"github.com/assanoff/skit-x/core/widget/widgetdb"
+	"github.com/assanoff/skit-x/core/widgetwebhook"
 )
 
 // TestWidgetWebhookHTTPMW exercises the in-process eventbus + resilient HTTP

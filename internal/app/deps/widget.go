@@ -4,15 +4,15 @@ import (
 	"context"
 	"time"
 
-	"github.com/assanoff/servicekit/dim"
-	"github.com/assanoff/servicekit/outbox"
-	"github.com/assanoff/servicekit/poller"
+	"github.com/assanoff/skit/dim"
+	"github.com/assanoff/skit/outbox"
+	"github.com/assanoff/skit/poller"
 
-	widgetapi "github.com/assanoff/service-kit-x/api/widget"
-	"github.com/assanoff/service-kit-x/core/widget"
-	"github.com/assanoff/service-kit-x/core/widget/widgetdb"
-	"github.com/assanoff/service-kit-x/core/widgetimport"
-	"github.com/assanoff/service-kit-x/internal/app/handlers/widgetgrpc"
+	widgetapi "github.com/assanoff/skit-x/api/widget"
+	"github.com/assanoff/skit-x/core/widget"
+	"github.com/assanoff/skit-x/core/widget/widgetdb"
+	"github.com/assanoff/skit-x/core/widgetimport"
+	"github.com/assanoff/skit-x/internal/app/handlers/widgetgrpc"
 )
 
 // initWidgetCore builds the widget business core over the Postgres store. When

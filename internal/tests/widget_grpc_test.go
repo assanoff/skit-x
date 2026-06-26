@@ -13,10 +13,10 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 
-	"github.com/assanoff/servicekit/logger"
+	"github.com/assanoff/skit/logger"
 
-	widgetv1 "github.com/assanoff/service-kit-x/gen/widget/v1"
-	"github.com/assanoff/service-kit-x/internal/app/server"
+	widgetv1 "github.com/assanoff/skit-x/gen/widget/v1"
+	"github.com/assanoff/skit-x/internal/app/server"
 )
 
 func TestWidgetGRPC(t *testing.T) {

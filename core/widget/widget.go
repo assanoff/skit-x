@@ -1,4 +1,4 @@
-// Package widget is an example business module. It demonstrates the servicekit
+// Package widget is an example business module. It demonstrates the skit
 // conventions: the Core holds business logic and depends only on a Store
 // interface declared here, while the concrete SQL implementation lives in a
 // nested package (widgetdb). This keeps the domain testable and storage-agnostic.
@@ -13,15 +13,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 
-	"github.com/assanoff/servicekit/auditlog/auditbus"
-	"github.com/assanoff/servicekit/auth"
-	"github.com/assanoff/servicekit/dbx"
-	"github.com/assanoff/servicekit/errs"
-	"github.com/assanoff/servicekit/eventbus"
-	"github.com/assanoff/servicekit/logger"
-	"github.com/assanoff/servicekit/order"
-	"github.com/assanoff/servicekit/outbox"
-	"github.com/assanoff/servicekit/page"
+	"github.com/assanoff/skit/auditlog/auditbus"
+	"github.com/assanoff/skit/auth"
+	"github.com/assanoff/skit/dbx"
+	"github.com/assanoff/skit/errs"
+	"github.com/assanoff/skit/eventbus"
+	"github.com/assanoff/skit/logger"
+	"github.com/assanoff/skit/order"
+	"github.com/assanoff/skit/outbox"
+	"github.com/assanoff/skit/page"
 )
 
 // Store is the persistence contract for widgets. The Core depends on this

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/assanoff/servicekit/dim"
-	"github.com/assanoff/servicekit/translation"
-	translationpg "github.com/assanoff/servicekit/translation/postgres"
+	"github.com/assanoff/skit/dim"
+	"github.com/assanoff/skit/translation"
+	translationpg "github.com/assanoff/skit/translation/postgres"
 )
 
 // initTranslation builds the content-translation translator over its Postgres

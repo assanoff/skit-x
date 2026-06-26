@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/assanoff/servicekit/dbx"
-	"github.com/assanoff/servicekit/migrate"
+	"github.com/assanoff/skit/dbx"
+	"github.com/assanoff/skit/migrate"
 
-	"github.com/assanoff/service-kit-x/internal/app/config"
-	"github.com/assanoff/service-kit-x/internal/migrations"
+	"github.com/assanoff/skit-x/internal/app/config"
+	"github.com/assanoff/skit-x/internal/migrations"
 )
 
 // MigrateCommand applies database migrations. Usage:

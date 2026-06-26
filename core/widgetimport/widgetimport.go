@@ -1,5 +1,5 @@
 // Package widgetimport is an example business module showing reliable background
-// processing with servicekit: callers enqueue batch-import jobs onto a durable
+// processing with skit: callers enqueue batch-import jobs onto a durable
 // queue, and a worker.Processor drains the queue, bulk-inserting each batch.
 //
 // It ties together three SDK pieces:
@@ -20,11 +20,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/assanoff/servicekit/logger"
-	"github.com/assanoff/servicekit/queue"
-	"github.com/assanoff/servicekit/worker"
+	"github.com/assanoff/skit/logger"
+	"github.com/assanoff/skit/queue"
+	"github.com/assanoff/skit/worker"
 
-	"github.com/assanoff/service-kit-x/core/widget"
+	"github.com/assanoff/skit-x/core/widget"
 )
 
 // Kind is the queue task kind handled by this module.

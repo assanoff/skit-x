@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	productcore "github.com/assanoff/service-kit-x/core/product"
+	productcore "github.com/assanoff/skit-x/core/product"
 )
 
 // CreateProductReq is the request body for creating a product.

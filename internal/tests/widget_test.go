@@ -17,12 +17,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/assanoff/servicekit/dbtest"
-	"github.com/assanoff/servicekit/logger"
+	"github.com/assanoff/skit/dbtest"
+	"github.com/assanoff/skit/logger"
 
-	"github.com/assanoff/service-kit-x/internal/app/config"
-	"github.com/assanoff/service-kit-x/internal/app/server"
-	"github.com/assanoff/service-kit-x/internal/migrations"
+	"github.com/assanoff/skit-x/internal/app/config"
+	"github.com/assanoff/skit-x/internal/app/server"
+	"github.com/assanoff/skit-x/internal/migrations"
 )
 
 func TestWidgetCRUD(t *testing.T) {

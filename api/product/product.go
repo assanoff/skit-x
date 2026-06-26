@@ -1,5 +1,5 @@
 // Package product is the REST transport for the product module. It demonstrates
-// the group-scoped authorization pattern of the servicekit web layer: it
+// the group-scoped authorization pattern of the skit web layer: it
 // registers no per-route auth, because the whole product group is guarded by the
 // server's Install via router.WithApp(authMW...). Every product endpoint —
 // including reads — therefore requires authorization when auth is enabled.
@@ -16,13 +16,13 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/assanoff/servicekit/errs"
-	"github.com/assanoff/servicekit/order"
-	"github.com/assanoff/servicekit/page"
-	"github.com/assanoff/servicekit/query"
-	"github.com/assanoff/servicekit/web/rest"
+	"github.com/assanoff/skit/errs"
+	"github.com/assanoff/skit/order"
+	"github.com/assanoff/skit/page"
+	"github.com/assanoff/skit/query"
+	"github.com/assanoff/skit/rest"
 
-	productcore "github.com/assanoff/service-kit-x/core/product"
+	productcore "github.com/assanoff/skit-x/core/product"
 )
 
 // Handler exposes product endpoints.

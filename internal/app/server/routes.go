@@ -5,24 +5,24 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/assanoff/servicekit/auditlog"
-	"github.com/assanoff/servicekit/auditlog/auditrest"
-	"github.com/assanoff/servicekit/auth"
-	"github.com/assanoff/servicekit/debugsrv"
-	"github.com/assanoff/servicekit/errs"
-	"github.com/assanoff/servicekit/health"
-	"github.com/assanoff/servicekit/httplog"
-	"github.com/assanoff/servicekit/metrics"
-	"github.com/assanoff/servicekit/translation/translationrest"
-	"github.com/assanoff/servicekit/web/mid"
-	"github.com/assanoff/servicekit/web/rest"
-	"github.com/assanoff/servicekit/web/restmid"
-	"github.com/assanoff/servicekit/web/router"
+	"github.com/assanoff/skit/auditlog"
+	"github.com/assanoff/skit/auditlog/auditrest"
+	"github.com/assanoff/skit/auth"
+	"github.com/assanoff/skit/debugsrv"
+	"github.com/assanoff/skit/errs"
+	"github.com/assanoff/skit/health"
+	"github.com/assanoff/skit/httplog"
+	"github.com/assanoff/skit/metrics"
+	"github.com/assanoff/skit/rest"
+	"github.com/assanoff/skit/rest/mid"
+	"github.com/assanoff/skit/rest/restmid"
+	"github.com/assanoff/skit/rest/router"
+	"github.com/assanoff/skit/translation/translationrest"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/assanoff/service-kit-x/internal/app/config"
-	"github.com/assanoff/service-kit-x/internal/app/deps"
-	"github.com/assanoff/service-kit-x/internal/app/reqctx"
+	"github.com/assanoff/skit-x/internal/app/config"
+	"github.com/assanoff/skit-x/internal/app/deps"
+	"github.com/assanoff/skit-x/internal/app/reqctx"
 )
 
 // buildRouter constructs the HTTP handler: it builds the router shell (the
@@ -182,7 +182,7 @@ func compactHandler(core *auditlog.Core, a config.Audit) rest.HandlerFunc {
 // the error rate by code, alongside the HTTP-status request metrics.
 func errorOutcomeRecorder(m *metrics.Metrics) func(code string) {
 	outcomes := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "servicekit",
+		Namespace: "skit",
 		Subsystem: "app",
 		Name:      "request_outcomes_total",
 		Help:      "Request outcomes by domain error code (ok for success).",

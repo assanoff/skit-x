@@ -16,39 +16,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: service-kit-x
+          path: skit-x
           fetch-depth: 0
       - uses: actions/checkout@v4
         with:
-          repository: assanoff/servicekit
-          path: go-web-sdk
+          repository: assanoff/skit
+          path: skit
 
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
 
       - name: Test
-        working-directory: service-kit-x
+        working-directory: skit-x
         run: go test -race -short ./...
 
       - name: Build versioned binaries
-        working-directory: service-kit-x
+        working-directory: skit-x
         env:
           VERSION: ${{ github.ref_name }}
         run: |
           mkdir -p dist
-          ldflags="-s -w -X github.com/assanoff/service-kit-x/internal/cmd.version=${VERSION}"
+          ldflags="-s -w -X github.com/assanoff/skit-x/internal/cmd.version=${VERSION}"
           for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
             os="${target%/*}"; arch="${target#*/}"
-            out="dist/service-kit-x_${VERSION}_${os}_${arch}"
+            out="dist/skit-x_${VERSION}_${os}_${arch}"
             echo ">> building $out"
             GOOS="$os" GOARCH="$arch" CGO_ENABLED=0 \
               go build -trimpath -ldflags "$ldflags" -o "$out" .
           done
-          ( cd dist && sha256sum service-kit-x_* > checksums.txt )
+          ( cd dist && sha256sum skit-x_* > checksums.txt )
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: service-kit-x/dist/*
+          files: skit-x/dist/*

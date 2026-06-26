@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/assanoff/servicekit/auditlog"
-	auditdb "github.com/assanoff/servicekit/auditlog/db"
-	"github.com/assanoff/servicekit/logger"
+	"github.com/assanoff/skit/auditlog"
+	auditdb "github.com/assanoff/skit/auditlog/db"
+	"github.com/assanoff/skit/logger"
 
-	"github.com/assanoff/service-kit-x/core/widget"
+	"github.com/assanoff/skit-x/core/widget"
 )
 
 // TestWidgetAuditLog exercises the auditlog demo over the full HTTP stack: the

@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/assanoff/servicekit/logger"
-	"github.com/assanoff/servicekit/poller"
+	"github.com/assanoff/skit/logger"
+	"github.com/assanoff/skit/poller"
 
-	"github.com/assanoff/service-kit-x/core/widget"
-	"github.com/assanoff/service-kit-x/core/widget/widgetdb"
+	"github.com/assanoff/skit-x/core/widget"
+	"github.com/assanoff/skit-x/core/widget/widgetdb"
 )
 
 // TestWidgetCountPoller exercises the poller demo: a poller caches the widget

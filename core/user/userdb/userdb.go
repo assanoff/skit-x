@@ -1,5 +1,5 @@
 // Package userdb is the Postgres implementation of user.Store. It maps between
-// the domain User and its database row and uses the servicekit dbx helpers for
+// the domain User and its database row and uses the skit dbx helpers for
 // query logging and error translation, following the SDK pg-store convention
 // (inline const queries, a model.go row type, dialect-composed pagination).
 package userdb
@@ -14,13 +14,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 
-	"github.com/assanoff/servicekit/dbx"
-	"github.com/assanoff/servicekit/dbx/dialect"
-	"github.com/assanoff/servicekit/logger"
-	"github.com/assanoff/servicekit/order"
-	"github.com/assanoff/servicekit/page"
+	"github.com/assanoff/skit/dbx"
+	"github.com/assanoff/skit/dbx/dialect"
+	"github.com/assanoff/skit/logger"
+	"github.com/assanoff/skit/order"
+	"github.com/assanoff/skit/page"
 
-	"github.com/assanoff/service-kit-x/core/user"
+	"github.com/assanoff/skit-x/core/user"
 )
 
 // Store implements user.Store against Postgres.

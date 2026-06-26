@@ -3,10 +3,10 @@ package cmd
 import (
 	"context"
 
-	"github.com/assanoff/servicekit/app"
+	"github.com/assanoff/skit/app"
 
-	"github.com/assanoff/service-kit-x/internal/app/config"
-	"github.com/assanoff/service-kit-x/internal/app/server"
+	"github.com/assanoff/skit-x/internal/app/config"
+	"github.com/assanoff/skit-x/internal/app/server"
 )
 
 // ServeCommand runs the long-lived server. It embeds ServerOpts so go-flags

@@ -6,7 +6,7 @@ import "google/api/annotations.proto";
 import "google/protobuf/go_features.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/assanoff/service-kit-x/gen/widget/v1;widgetv1";
+option go_package = "github.com/assanoff/skit-x/gen/widget/v1;widgetv1";
 
 // HYBRID Go API: the opaque accessors/builders (Get*/Set*/Type_builder) used by
 // the gRPC handler PLUS the exported struct fields that protoc-gen-grpc-gateway

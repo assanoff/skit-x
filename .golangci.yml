@@ -55,7 +55,7 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/assanoff/service-kit-x
+        - github.com/assanoff/skit-x
   exclusions:
     generated: lax
     paths:

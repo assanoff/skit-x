@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/assanoff/servicekit/order"
+	"github.com/assanoff/skit/order"
 )
 
 // EventWidgetCreated is the CloudEvents type published when a widget is created.

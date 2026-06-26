@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/assanoff/service-kit-x/core/product"
+	"github.com/assanoff/skit-x/core/product"
 )
 
 // dbProduct is the database representation of a product.

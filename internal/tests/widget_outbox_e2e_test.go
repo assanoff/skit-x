@@ -13,14 +13,14 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
-	"github.com/assanoff/servicekit/broker/rabbitmq"
-	"github.com/assanoff/servicekit/logger"
-	"github.com/assanoff/servicekit/outbox"
-	"github.com/assanoff/servicekit/worker"
+	"github.com/assanoff/skit/broker/rabbitmq"
+	"github.com/assanoff/skit/logger"
+	"github.com/assanoff/skit/outbox"
+	"github.com/assanoff/skit/worker"
 
-	"github.com/assanoff/service-kit-x/core/widget"
-	"github.com/assanoff/service-kit-x/core/widget/widgetdb"
-	"github.com/assanoff/service-kit-x/core/widgetaudit"
+	"github.com/assanoff/skit-x/core/widget"
+	"github.com/assanoff/skit-x/core/widget/widgetdb"
+	"github.com/assanoff/skit-x/core/widgetaudit"
 )
 
 // TestWidgetOutboxE2E exercises the full reliable publish->consume pipeline
@@ -33,9 +33,9 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	}
 
 	const (
-		exchange   = "servicekit.widgets.test"
+		exchange   = "skit.widgets.test"
 		routingKey = "widget.created"
-		queue      = "servicekit.widget-audit.test"
+		queue      = "skit.widget-audit.test"
 	)
 
 	ctx := context.Background()
@@ -58,7 +58,7 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = conn.Close() })
 
-	pub, err := rabbitmq.NewPublisher(conn, "servicekit-test", log)
+	pub, err := rabbitmq.NewPublisher(conn, "skit-test", log)
 	if err != nil {
 		t.Fatalf("new publisher: %v", err)
 	}

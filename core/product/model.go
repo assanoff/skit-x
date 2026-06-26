@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/assanoff/servicekit/order"
+	"github.com/assanoff/skit/order"
 )
 
 // Product is the domain entity. Price is stored as an integer minor unit (e.g.

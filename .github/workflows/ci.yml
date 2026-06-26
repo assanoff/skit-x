@@ -8,32 +8,32 @@ on:
 permissions:
   contents: read
 
-# The module uses `replace github.com/assanoff/servicekit => ../go-web-sdk`, so
+# The module uses `replace github.com/assanoff/skit => ../skit`, so
 # the SDK must sit next to this repo. Every job checks both repos out into
-# sibling directories under the workspace and runs from ./service-kit-x.
+# sibling directories under the workspace and runs from ./skit-x.
 jobs:
   build-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          path: service-kit-x
+          path: skit-x
       - uses: actions/checkout@v4
         with:
-          repository: assanoff/servicekit
-          path: go-web-sdk
+          repository: assanoff/skit
+          path: skit
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
-          cache-dependency-path: service-kit-x/go.sum
+          cache-dependency-path: skit-x/go.sum
       - name: Build
-        working-directory: service-kit-x
+        working-directory: skit-x
         run: go build ./...
       - name: Vet
-        working-directory: service-kit-x
+        working-directory: skit-x
         run: go vet ./...
       - name: Test
-        working-directory: service-kit-x
+        working-directory: skit-x
         run: go test -race -short ./...
 
   lint:
@@ -41,18 +41,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: service-kit-x
+          path: skit-x
       - uses: actions/checkout@v4
         with:
-          repository: assanoff/servicekit
-          path: go-web-sdk
+          repository: assanoff/skit
+          path: skit
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
       - uses: golangci/golangci-lint-action@v6
         with:
           version: latest
-          working-directory: service-kit-x
+          working-directory: skit-x
 
   # Integration tests stand up Postgres and RabbitMQ via testcontainers; the
   # ubuntu runner ships with Docker, so they run unguarded here (locally they
@@ -62,17 +62,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: service-kit-x
+          path: skit-x
       - uses: actions/checkout@v4
         with:
-          repository: assanoff/servicekit
-          path: go-web-sdk
+          repository: assanoff/skit
+          path: skit
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
-          cache-dependency-path: service-kit-x/go.sum
+          cache-dependency-path: skit-x/go.sum
       - name: Integration tests
-        working-directory: service-kit-x
+        working-directory: skit-x
         run: go test -count=1 -timeout 20m ./internal/tests/...
 
   # Contract diff gates. This service exposes three contracts to consumers; each
@@ -84,12 +84,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: service-kit-x
+          path: skit-x
           fetch-depth: 0 # tags + history needed for the baselines
       - uses: actions/checkout@v4
         with:
-          repository: assanoff/servicekit
-          path: go-web-sdk
+          repository: assanoff/skit
+          path: skit
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
@@ -98,11 +98,11 @@ jobs:
           github_token: ${{ github.token }}
 
       - name: Go API (gorelease)
-        working-directory: service-kit-x
+        working-directory: skit-x
         run: go run golang.org/x/exp/cmd/gorelease@latest || true
 
       - name: gRPC (buf breaking)
-        working-directory: service-kit-x
+        working-directory: skit-x
         # Compare the proto module against the same path on the default branch.
         run: |
           buf breaking proto \
@@ -110,7 +110,7 @@ jobs:
             || echo "::warning::gRPC contract has a breaking change — bump a major"
 
       - name: REST (oasdiff)
-        working-directory: service-kit-x
+        working-directory: skit-x
         # Regenerate the spec, then diff it against the spec committed at the
         # latest tag. Skipped until the first tag exists.
         run: |

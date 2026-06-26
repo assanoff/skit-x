@@ -4,12 +4,12 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/assanoff/servicekit/dim"
-	"github.com/assanoff/servicekit/eventbus"
-	"github.com/assanoff/servicekit/httpmw"
-	"github.com/assanoff/servicekit/worker"
+	"github.com/assanoff/skit/dim"
+	"github.com/assanoff/skit/eventbus"
+	"github.com/assanoff/skit/httpmw"
+	"github.com/assanoff/skit/worker"
 
-	"github.com/assanoff/service-kit-x/core/widgetwebhook"
+	"github.com/assanoff/skit-x/core/widgetwebhook"
 )
 
 // initBus builds the in-process event bus and registers its consumers. When the

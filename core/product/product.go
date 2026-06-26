@@ -1,5 +1,5 @@
 // Package product is an example business module: a clean REST CRUD vertical that
-// demonstrates the servicekit web architecture. The Core holds business logic
+// demonstrates the skit web architecture. The Core holds business logic
 // and depends only on the Store interface declared here; the Postgres
 // implementation lives in the nested productdb package.
 package product
@@ -11,11 +11,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/assanoff/servicekit/dbx"
-	"github.com/assanoff/servicekit/errs"
-	"github.com/assanoff/servicekit/logger"
-	"github.com/assanoff/servicekit/order"
-	"github.com/assanoff/servicekit/page"
+	"github.com/assanoff/skit/dbx"
+	"github.com/assanoff/skit/errs"
+	"github.com/assanoff/skit/logger"
+	"github.com/assanoff/skit/order"
+	"github.com/assanoff/skit/page"
 )
 
 // Store is the persistence contract for products.

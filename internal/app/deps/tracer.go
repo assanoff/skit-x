@@ -6,9 +6,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 
-	"github.com/assanoff/servicekit/dim"
-	"github.com/assanoff/servicekit/otel"
-	"github.com/assanoff/servicekit/provider"
+	"github.com/assanoff/skit/dim"
+	"github.com/assanoff/skit/otel"
+	"github.com/assanoff/skit/provider"
 )
 
 // initTracer initializes the application tracer. When tracing is disabled it

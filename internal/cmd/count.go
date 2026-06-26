@@ -3,10 +3,10 @@ package cmd
 import (
 	"context"
 
-	"github.com/assanoff/servicekit/app"
+	"github.com/assanoff/skit/app"
 
-	"github.com/assanoff/service-kit-x/internal/app/config"
-	"github.com/assanoff/service-kit-x/internal/app/deps"
+	"github.com/assanoff/skit-x/internal/app/config"
+	"github.com/assanoff/skit-x/internal/app/deps"
 )
 
 // CountCommand prints the number of widgets. It demonstrates a one-shot CLI

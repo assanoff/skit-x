@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	usercore "github.com/assanoff/service-kit-x/core/user"
+	usercore "github.com/assanoff/skit-x/core/user"
 )
 
 // CreateUserReq is the request body for creating a user.

@@ -4,7 +4,7 @@
 // resilient HTTP client (an httpmw retry transport), so a flaky receiver that
 // returns 429/503 is retried with backoff and honors Retry-After.
 //
-// It demonstrates two servicekit packages working together — eventbus (in-process
+// It demonstrates two skit packages working together — eventbus (in-process
 // fan-out) and httpmw (resilient outbound calls) — while keeping the dependency
 // one-way: the producer (widget.Core) never imports this package; this package
 // imports only the shared event contract (widget.Created).
@@ -17,10 +17,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/assanoff/servicekit/eventbus"
-	"github.com/assanoff/servicekit/logger"
+	"github.com/assanoff/skit/eventbus"
+	"github.com/assanoff/skit/logger"
 
-	"github.com/assanoff/service-kit-x/core/widget"
+	"github.com/assanoff/skit-x/core/widget"
 )
 
 // Notifier POSTs widget.created events to a webhook URL using a (typically
