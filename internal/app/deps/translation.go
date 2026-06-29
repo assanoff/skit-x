@@ -14,7 +14,8 @@ import (
 // store. Canonical widget content is stored in the default language; the
 // translationrest middleware (wired in app/server) translates responses into the
 // request language whenever a translation exists. The translations table is
-// created by migration 0005_translation.sql.
+// owned by the SDK translation package, so it is provisioned here at startup via
+// EnsureSchema (advisory-lock guarded, replica-safe).
 var initTranslation = func(c *Deps) (dim.CleanupFunc, error) {
 	c.Translation = dim.OnceWithName("Translation", func(ctx context.Context) (*translation.Translator, error) {
 		t := c.Opts.Translation
@@ -26,8 +27,12 @@ var initTranslation = func(c *Deps) (dim.CleanupFunc, error) {
 			}
 		}
 
+		store := translationpg.NewStore(c.Logger, c.DB(ctx))
+		if err := store.EnsureSchema(ctx); err != nil {
+			return nil, fmt.Errorf("ensure translation schema: %w", err)
+		}
 		tr, err := translation.New(translation.Config{
-			Store:           translationpg.NewStore(c.Logger, c.DB(ctx)),
+			Store:           store,
 			DefaultLanguage: translation.Language{Code: t.DefaultLang},
 			SupportedLangs:  supported,
 		})

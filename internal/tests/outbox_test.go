@@ -10,10 +10,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 
+	auditdb "github.com/assanoff/skit/auditlog/db"
 	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/logger"
 	"github.com/assanoff/skit/outbox"
+	"github.com/assanoff/skit/queue"
 	"github.com/assanoff/skit/retry"
+	translationpg "github.com/assanoff/skit/translation/postgres"
 
 	"github.com/assanoff/skit-x/internal/app/config"
 )
@@ -204,6 +207,27 @@ func statusOf(t *testing.T, db *sqlx.DB, id uuid.UUID) string {
 		t.Fatalf("query status: %v", err)
 	}
 	return status
+}
+
+// ensureSDKSchemas provisions the tables owned by the SDK storage packages
+// (queue/outbox/auditlog/translation), which the app no longer keeps in its
+// migrations — mirroring what the deps providers do at app startup. startPostgres
+// calls it so every integration test has these tables regardless of how it later
+// opens its own DB. The advisory-lock-guarded EnsureSchema is idempotent, so the
+// duplicate calls across tests (and against the deps providers) are harmless.
+func ensureSDKSchemas(ctx context.Context, t *testing.T, cfg config.ServerOpts) {
+	t.Helper()
+	log := logger.New(io.Discard, logger.Config{Service: "test", Level: logger.LevelError})
+	db := openTestDB(t, cfg)
+	must := func(name string, err error) {
+		if err != nil {
+			t.Fatalf("ensure %s schema: %v", name, err)
+		}
+	}
+	must("queue", queue.NewPG(log, db, queue.Options{}).EnsureSchema(ctx))
+	must("outbox", outbox.NewPG(log, db, outbox.Options{}).EnsureSchema(ctx))
+	must("auditlog", auditdb.NewStore(log, db).EnsureSchema(ctx))
+	must("translation", translationpg.NewStore(log, db).EnsureSchema(ctx))
 }
 
 // openTestDB opens a pool against the test database. Shared by the outbox and

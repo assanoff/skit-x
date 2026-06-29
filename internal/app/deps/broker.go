@@ -2,6 +2,7 @@ package deps
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/assanoff/skit/broker"
 	"github.com/assanoff/skit/broker/rabbitmq"
@@ -43,7 +44,11 @@ var initBroker = func(c *Deps) (dim.CleanupFunc, error) {
 		return pub, nil
 	})
 	c.Outbox = dim.OnceWithName("Outbox", func(ctx context.Context) (outbox.Store, error) {
-		return outbox.NewPG(c.Logger, c.DB(ctx), outbox.Options{}), nil
+		store := outbox.NewPG(c.Logger, c.DB(ctx), outbox.Options{})
+		if err := store.EnsureSchema(ctx); err != nil {
+			return nil, fmt.Errorf("ensure outbox schema: %w", err)
+		}
+		return store, nil
 	})
 
 	// Closed LIFO: publisher first, then the connection it rode on.

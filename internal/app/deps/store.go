@@ -2,6 +2,7 @@ package deps
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/dim"
@@ -25,11 +26,16 @@ var initStore = func(c *Deps) (cleanup dim.CleanupFunc, err error) {
 	return cleanup, nil
 }
 
-// initQueue builds the Postgres-backed work queue. The backing table is created
-// by migrations (0002_queue.sql); the queue itself holds no resources of its own.
+// initQueue builds the Postgres-backed work queue. The backing table is owned by
+// the SDK queue package, so it is provisioned here at startup via EnsureSchema
+// (advisory-lock guarded, replica-safe) rather than by a hand-written migration.
 var initQueue = func(c *Deps) (dim.CleanupFunc, error) {
 	c.Queue = dim.OnceWithName("Queue", func(ctx context.Context) (*queue.PG, error) {
-		return queue.NewPG(c.Logger, c.DB(ctx), queue.Options{}), nil
+		q := queue.NewPG(c.Logger, c.DB(ctx), queue.Options{})
+		if err := q.EnsureSchema(ctx); err != nil {
+			return nil, fmt.Errorf("ensure queue schema: %w", err)
+		}
+		return q, nil
 	})
 	return nil, nil
 }

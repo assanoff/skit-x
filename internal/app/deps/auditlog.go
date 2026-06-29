@@ -2,6 +2,7 @@ package deps
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/assanoff/skit/auditlog"
 	"github.com/assanoff/skit/auditlog/auditbus"
@@ -18,11 +19,17 @@ import (
 var initAuditLog = func(c *Deps) (dim.CleanupFunc, error) {
 	c.AuditLog = dim.OnceWithName("AuditLog", func(ctx context.Context) (*auditlog.Core, error) {
 		a := c.Opts.Audit
+		// The audit_log table is owned by the SDK auditlog package, so it is
+		// provisioned here at startup via EnsureSchema (advisory-lock guarded).
+		store := auditdb.NewStore(c.Logger, c.DB(ctx))
+		if err := store.EnsureSchema(ctx); err != nil {
+			return nil, fmt.Errorf("ensure auditlog schema: %w", err)
+		}
 		// Opportunistic inline compaction: every AutoCompactEvery versions, Create
 		// thins that model's history (best-effort) so it stays bounded without a
 		// separate sweep. The same options back the POST /auditlog/compact endpoint.
 		return auditlog.NewCore(
-			c.Logger, auditdb.NewStore(c.Logger, c.DB(ctx)),
+			c.Logger, store,
 			auditlog.WithAutoCompact(a.AutoCompactEvery, auditlog.CompactOptions{
 				Factor:      a.Factor,
 				KeepRecent:  a.KeepRecent,
