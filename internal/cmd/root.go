@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -25,9 +26,21 @@ type Opts struct {
 }
 
 // Execute loads .env, parses flags/env, and runs the selected subcommand.
+//
+// The .env file is optional: every option has a default and configuration also
+// comes from the process environment (in production, from the orchestrator). A
+// missing file is not an error — startup proceeds on defaults — but we warn so
+// the absence is visible. The app logger is not built yet here (it needs the
+// parsed config), so the warning goes through slog's default handler.
 func Execute() {
 	var opts Opts
-	if err := skconfig.Parse(&opts, ".env"); err != nil {
+
+	const envFile = ".env"
+	if _, err := os.Stat(envFile); errors.Is(err, os.ErrNotExist) {
+		slog.Warn("no .env file found; starting on defaults and process environment", "file", envFile)
+	}
+
+	if err := skconfig.Parse(&opts, envFile); err != nil {
 		if skconfig.IsHelp(err) {
 			os.Exit(0)
 		}
