@@ -76,8 +76,8 @@ build-cover: ## Cross-compile a static linux coverage-instrumented binary (for t
 	@echo "built instrumented $(BIN) for $(or $(GOOS),linux)/$(or $(GOARCH),amd64)"
 
 .PHONY: run
-run: ## Run the server (go run . serve)
-	$(GO) run -ldflags "$(LDFLAGS)" . serve
+run: ## Run the server (go run . serve). Ctrl+C shuts down gracefully (not a make error).
+	@trap 'exit 0' INT; $(GO) run -ldflags "$(LDFLAGS)" . serve
 
 # ---------------------------------------------------------------------------
 # Test

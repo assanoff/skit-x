@@ -46,10 +46,16 @@ func (c *MigrateCommand) Execute(args []string) error {
 	}
 	defer func() { _ = db.Close() }()
 
-	ctx := context.Background()
-	if err := dbx.StatusCheck(ctx, db); err != nil {
+	// Bound the connectivity check so a misconfigured or unreachable DB (wrong
+	// port, missing database, bad credentials, TLS mismatch) fails fast with the
+	// real error instead of retrying forever.
+	checkCtx, cancel := context.WithTimeout(context.Background(), dbx.DefaultStatusCheckTimeout)
+	defer cancel()
+	if err := dbx.StatusCheck(checkCtx, db); err != nil {
 		return fmt.Errorf("db status check: %w", err)
 	}
+
+	ctx := context.Background()
 
 	m, err := migrate.New(migrate.Postgres, db.DB, migrations.FS)
 	if err != nil {
