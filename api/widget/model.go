@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/assanoff/skit/errs"
 	"github.com/assanoff/skit/query"
 	"github.com/assanoff/skit/translation"
 
@@ -16,11 +17,31 @@ type CreateWidgetReq struct {
 	Description string `json:"description" validate:"max=500"`
 }
 
+// Decode implements rest.Decoder.
+func (req *CreateWidgetReq) Decode(data []byte) error {
+	return json.Unmarshal(data, req)
+}
+
+// Validate validates the request via its struct tags.
+func (req CreateWidgetReq) Validate() error {
+	return errs.Check(req)
+}
+
 // UpdateWidgetReq is the request body for a partial widget update; nil fields
 // are left unchanged.
 type UpdateWidgetReq struct {
 	Name        *string `json:"name" validate:"omitempty,max=100"`
 	Description *string `json:"description" validate:"omitempty,max=500"`
+}
+
+// Decode implements rest.Decoder.
+func (req *UpdateWidgetReq) Decode(data []byte) error {
+	return json.Unmarshal(data, req)
+}
+
+// Validate validates the request via its struct tags.
+func (req UpdateWidgetReq) Validate() error {
+	return errs.Check(req)
 }
 
 // TranslateWidgetReq saves a translation of a widget's content into one language.
@@ -30,11 +51,31 @@ type TranslateWidgetReq struct {
 	Description string `json:"description" validate:"max=500"`
 }
 
+// Decode implements rest.Decoder.
+func (req *TranslateWidgetReq) Decode(data []byte) error {
+	return json.Unmarshal(data, req)
+}
+
+// Validate validates the request via its struct tags.
+func (req TranslateWidgetReq) Validate() error {
+	return errs.Check(req)
+}
+
 // ImportWidgetsReq is a batch enqueued for asynchronous bulk import. Name is an
 // optional dedup key: re-posting the same name is a no-op.
 type ImportWidgetsReq struct {
 	Name    string            `json:"name" validate:"max=200"`
 	Widgets []CreateWidgetReq `json:"widgets" validate:"required,min=1,max=1000,dive"`
+}
+
+// Decode implements rest.Decoder.
+func (req *ImportWidgetsReq) Decode(data []byte) error {
+	return json.Unmarshal(data, req)
+}
+
+// Validate validates the request (and each nested widget) via struct tags.
+func (req ImportWidgetsReq) Validate() error {
+	return errs.Check(req)
 }
 
 // ImportResponse acknowledges an accepted bulk-import batch.

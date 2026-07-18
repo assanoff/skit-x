@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/assanoff/skit/errs"
+
 	productcore "github.com/assanoff/skit-x/core/product"
 )
 
@@ -13,10 +15,30 @@ type CreateProductReq struct {
 	Price int64  `json:"price" validate:"gte=0"`
 }
 
+// Decode implements rest.Decoder.
+func (req *CreateProductReq) Decode(data []byte) error {
+	return json.Unmarshal(data, req)
+}
+
+// Validate validates the request via its struct tags.
+func (req CreateProductReq) Validate() error {
+	return errs.Check(req)
+}
+
 // UpdateProductReq is a partial product update; nil fields are left unchanged.
 type UpdateProductReq struct {
 	Name  *string `json:"name" validate:"omitempty,max=200"`
 	Price *int64  `json:"price" validate:"omitempty,gte=0"`
+}
+
+// Decode implements rest.Decoder.
+func (req *UpdateProductReq) Decode(data []byte) error {
+	return json.Unmarshal(data, req)
+}
+
+// Validate validates the request via its struct tags.
+func (req UpdateProductReq) Validate() error {
+	return errs.Check(req)
 }
 
 // Response is the REST representation of a product. It implements rest.ResponseEncoder

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/assanoff/skit/errs"
+
 	usercore "github.com/assanoff/skit-x/core/user"
 )
 
@@ -13,10 +15,30 @@ type CreateUserReq struct {
 	Name  string `json:"name" validate:"required,max=100"`
 }
 
+// Decode implements rest.Decoder.
+func (req *CreateUserReq) Decode(data []byte) error {
+	return json.Unmarshal(data, req)
+}
+
+// Validate validates the request via its struct tags.
+func (req CreateUserReq) Validate() error {
+	return errs.Check(req)
+}
+
 // UpdateUserReq is a partial user update; nil fields are left unchanged.
 type UpdateUserReq struct {
 	Email *string `json:"email" validate:"omitempty,email,max=200"`
 	Name  *string `json:"name" validate:"omitempty,max=100"`
+}
+
+// Decode implements rest.Decoder.
+func (req *UpdateUserReq) Decode(data []byte) error {
+	return json.Unmarshal(data, req)
+}
+
+// Validate validates the request via its struct tags.
+func (req UpdateUserReq) Validate() error {
+	return errs.Check(req)
 }
 
 // Response is the REST representation of a user. It implements rest.ResponseEncoder, so
