@@ -20,6 +20,9 @@ type CountCommand struct {
 // Execute implements flags.Commander.
 func (c *CountCommand) Execute(_ []string) error {
 	cfg := c.ServerOpts
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
 	log := buildLogger(cfg)
 	d := &deps.Deps{Opts: cfg, Logger: log}
 

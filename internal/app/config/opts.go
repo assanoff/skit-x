@@ -3,7 +3,26 @@
 // variable (env, namespaced per group), a default, and a --help description.
 package config
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
+
+// EnvProduction is the APP_ENV value that turns on production safety checks
+// (see Validate).
+const EnvProduction = "production"
+
+// Validate rejects configurations that are unsafe for the running environment.
+// It is called by the serve and migrate subcommands before they open the
+// database. TLS is off by default so local development works out of the box
+// (all other DB defaults point at a local Postgres); this guard makes sure that
+// convenience never silently reaches production.
+func (o ServerOpts) Validate() error {
+	if o.Env == EnvProduction && !o.DB.TLS {
+		return fmt.Errorf("refusing to run in %s with database TLS disabled: set DB_TLS=true", EnvProduction)
+	}
+	return nil
+}
 
 // ServerOpts is the full application configuration. Groups are namespaced so
 // their env vars read as HTTP_ADDR, GRPC_ADDR, DB_USER, OTEL_ENABLED, etc.
@@ -71,7 +90,7 @@ type DB struct {
 	Schema       string `long:"schema"         env:"SCHEMA"         default:"public"     description:"postgres schema"          json:"-"`
 	MaxIdleConns int    `long:"max-idle-conns" env:"MAX_IDLE_CONNS" default:"5"          description:"max idle connections"`
 	MaxOpenConns int    `long:"max-open-conns" env:"MAX_OPEN_CONNS" default:"20"         description:"max open connections"`
-	DisableTLS   bool   `long:"disable-tls"    env:"DISABLE_TLS"    description:"disable TLS to the database (set for local dev)"`
+	TLS          bool   `long:"tls"            env:"TLS"                                    description:"require TLS to the database; off for local dev, set DB_TLS=true in production"`
 }
 
 // Worker holds background-processing settings for the widget-import queue

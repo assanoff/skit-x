@@ -24,6 +24,9 @@ type MigrateCommand struct {
 // Execute implements flags.Commander. The trailing arg selects the direction.
 func (c *MigrateCommand) Execute(args []string) error {
 	cfg := c.ServerOpts
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
 	log := buildLogger(cfg)
 
 	direction := "up"
@@ -39,7 +42,7 @@ func (c *MigrateCommand) Execute(args []string) error {
 		Schema:       cfg.DB.Schema,
 		MaxIdleConns: cfg.DB.MaxIdleConns,
 		MaxOpenConns: cfg.DB.MaxOpenConns,
-		DisableTLS:   cfg.DB.DisableTLS,
+		DisableTLS:   !cfg.DB.TLS,
 	})
 	if err != nil {
 		return fmt.Errorf("open db: %w", err)

@@ -18,6 +18,9 @@ type ServeCommand struct {
 // Execute implements flags.Commander.
 func (c *ServeCommand) Execute(_ []string) error {
 	cfg := c.ServerOpts
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
 	log := buildLogger(cfg)
 	ctx := context.Background()
 
