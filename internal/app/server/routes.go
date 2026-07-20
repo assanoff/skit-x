@@ -62,7 +62,8 @@ func buildRouter(ctx context.Context, d *deps.Deps, m *metrics.Metrics, debug *d
 	// before anything reads it) -> mid.Chain -> translationrest (innermost).
 	// Chain is the SDK-standard core; reqctx and translation are app-specific and
 	// wrap it.
-	appMids := []rest.MidFunc{reqctx.Middleware()}
+	appMids := make([]rest.MidFunc, 0, 3)
+	appMids = append(appMids, reqctx.Middleware())
 	appMids = append(appMids, mid.Chain(mid.Config{
 		Translator:   translator,
 		Lang:         reqctx.Language,

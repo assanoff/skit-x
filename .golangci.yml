@@ -5,21 +5,25 @@ run:
   tests: true
 
 linters:
-  default: standard
+  default: none
   enable:
-    - bodyclose
-    - errorlint
+    - dupl
+    - errcheck
+    - gochecknoinits
     - gocritic
+    - gocyclo
+    - gosec
+    - govet
+    - ineffassign
     - misspell
+    - nakedret
+    - prealloc
     - revive
+    - staticcheck
     - unconvert
     - unparam
-    - wastedassign
+    - unused
   settings:
-    revive:
-      rules:
-        - name: exported
-          disabled: false
     errcheck:
       # Writes to stdout/stderr (CLI progress, log lines) don't warrant error
       # handling; everything else must still be checked.
@@ -27,26 +31,78 @@ linters:
         - fmt.Fprint
         - fmt.Fprintf
         - fmt.Fprintln
+    goconst:
+      min-len: 2
+      min-occurrences: 2
+    gocritic:
+      disabled-checks:
+        - wrapperFunc
+        - hugeParam
+        - rangeValCopy
+        - singleCaseSwitch
+        - ifElseChain
+        - unnamedResult # noisy on the many Encode() ([]byte, string, error) impls
+      enabled-tags:
+        - performance
+        - style
+        - experimental
+    gosec:
+      excludes:
+        - G704 # SSRF taint analysis: false positive for outbound HTTP clients
+        - G705 # XSS taint analysis: false positive (JSON response bodies)
+    govet:
+      enable:
+        - shadow
+    misspell:
+      locale: US
+    revive:
+      rules:
+        - name: exported
+          disabled: false
   exclusions:
     generated: lax
     rules:
+      # Test files: relax duplication, security, style, and unused-arg noise.
       - path: _test\.go
         linters:
+          - dupl
+          - gosec
           - errcheck
           - unparam
-          - bodyclose
+          - gocritic
+          - prealloc
+          - gocyclo
+      - path: _test\.go$
+        linters:
+          - revive
+          - unparam
+          - unused
+        text: unused-parameter
+      # go vet's shadow check flags idiomatic `if err := ...` in tests; allow it.
+      - path: _test\.go
+        linters:
+          - govet
+        text: 'shadow:'
+      # Generated mocks are not held to our style rules.
       - path: mocks/
         linters:
           - revive
+          - dupl
+          - unparam
       # Protobuf/gRPC stubs are generated; do not hold them to our lint standards.
       - path: gen/
         linters:
           - revive
-          - errorlint
           - gocritic
+          - gocyclo
+          - gosec
+          - dupl
           - staticcheck
           - unconvert
           - unparam
+          - govet
+          - prealloc
+          - misspell
 
 formatters:
   enable:

@@ -12,18 +12,6 @@ import (
 // (see Validate).
 const EnvProduction = "production"
 
-// Validate rejects configurations that are unsafe for the running environment.
-// It is called by the serve and migrate subcommands before they open the
-// database. TLS is off by default so local development works out of the box
-// (all other DB defaults point at a local Postgres); this guard makes sure that
-// convenience never silently reaches production.
-func (o ServerOpts) Validate() error {
-	if o.Env == EnvProduction && !o.DB.TLS {
-		return fmt.Errorf("refusing to run in %s with database TLS disabled: set DB_TLS=true", EnvProduction)
-	}
-	return nil
-}
-
 // ServerOpts is the full application configuration. Groups are namespaced so
 // their env vars read as HTTP_ADDR, GRPC_ADDR, DB_USER, OTEL_ENABLED, etc.
 type ServerOpts struct {
@@ -43,6 +31,18 @@ type ServerOpts struct {
 	Webhook     Webhook     `group:"webhook" namespace:"webhook" env-namespace:"WEBHOOK"`
 	Audit       Audit       `group:"audit" namespace:"audit" env-namespace:"AUDIT"`
 	Translation Translation `group:"translation" namespace:"translation" env-namespace:"TRANSLATION"`
+}
+
+// Validate rejects configurations that are unsafe for the running environment.
+// It is called by the serve and migrate subcommands before they open the
+// database. TLS is off by default so local development works out of the box
+// (all other DB defaults point at a local Postgres); this guard makes sure that
+// convenience never silently reaches production.
+func (o ServerOpts) Validate() error {
+	if o.Env == EnvProduction && !o.DB.TLS {
+		return fmt.Errorf("refusing to run in %s with database TLS disabled: set DB_TLS=true", EnvProduction)
+	}
+	return nil
 }
 
 // HTTP holds REST server settings. REST and gRPC run together or independently:

@@ -172,7 +172,7 @@ func (h *Handler) update(ctx context.Context, r *http.Request) rest.ResponseEnco
 	}
 
 	var req UpdateProductReq
-	if err := rest.Decode(r, &req); err != nil {
+	if err = rest.Decode(r, &req); err != nil {
 		return errs.From(err)
 	}
 

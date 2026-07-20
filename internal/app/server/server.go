@@ -64,7 +64,8 @@ func New(ctx context.Context, opts config.ServerOpts, log *logger.Logger) (*App,
 		)
 	}
 	if opts.Broker.Enabled {
-		bw, err := brokerWorkers(ctx, opts, d, m)
+		var bw []worker.Runnable
+		bw, err = brokerWorkers(ctx, opts, d, m)
 		if err != nil {
 			return nil, err
 		}
@@ -170,11 +171,12 @@ func readiness(d *deps.Deps) http.Handler {
 func brokerWorkers(ctx context.Context, opts config.ServerOpts, d *deps.Deps, m *metrics.Metrics) ([]worker.Runnable, error) {
 	ob := d.Outbox(ctx)
 	om := outbox.NewMetrics(m.Registry)
-	runnables := []worker.Runnable{
+	runnables := make([]worker.Runnable, 0, 4)
+	runnables = append(runnables,
 		outbox.NewRelay(d.Logger, ob, d.Publisher(ctx), outbox.RelayConfig{Metrics: om}),
 		outbox.NewSweeper(d.Logger, ob, outbox.SweeperConfig{Metrics: om}),
 		outbox.NewCleaner(d.Logger, ob, outbox.CleanerConfig{Metrics: om}),
-	}
+	)
 
 	// Backlog gauges query the store on each scrape; register the collector when
 	// the store supports it (the Postgres store does).

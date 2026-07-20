@@ -54,7 +54,7 @@ func (c *MigrateCommand) Execute(args []string) error {
 	// real error instead of retrying forever.
 	checkCtx, cancel := context.WithTimeout(context.Background(), dbx.DefaultStatusCheckTimeout)
 	defer cancel()
-	if err := dbx.StatusCheck(checkCtx, db); err != nil {
+	if err = dbx.StatusCheck(checkCtx, db); err != nil {
 		return fmt.Errorf("db status check: %w", err)
 	}
 

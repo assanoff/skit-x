@@ -3,7 +3,7 @@ module github.com/assanoff/skit-x
 go 1.26
 
 require (
-	github.com/assanoff/skit v0.0.0
+	github.com/assanoff/skit v0.7.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0
