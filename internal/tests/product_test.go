@@ -147,25 +147,27 @@ func TestProductCursorPagination(t *testing.T) {
 		is.Equal(resp.StatusCode, http.StatusOK)
 
 		var pr struct {
-			Items []struct {
-				ID string `json:"id"`
-			} `json:"items"`
-			Next string `json:"next"`
-			Prev string `json:"prev"`
+			Data struct {
+				Items []struct {
+					ID string `json:"id"`
+				} `json:"items"`
+				Next string `json:"next"`
+				Prev string `json:"prev"`
+			} `json:"data"`
 		}
 		decode(t, resp, &pr)
 
-		is.Equal(pr.Prev, "") // forward-only: prev is never emitted
-		for _, it := range pr.Items {
+		is.Equal(pr.Data.Prev, "") // forward-only: prev is never emitted
+		for _, it := range pr.Data.Items {
 			is.True(!seen[it.ID]) // no row repeats across pages
 			seen[it.ID] = true
 		}
 		pages++
-		if pr.Next == "" {
+		if pr.Data.Next == "" {
 			break
 		}
-		is.Equal(len(pr.Items), 2) // a full page precedes a next cursor
-		cursor = pr.Next
+		is.Equal(len(pr.Data.Items), 2) // a full page precedes a next cursor
+		cursor = pr.Data.Next
 		if pages > total {
 			t.Fatal("cursor did not terminate")
 		}
@@ -179,8 +181,7 @@ func TestProductCursorPagination(t *testing.T) {
 }
 
 // TestProductListPaginationMeta verifies the offset list envelope carries the
-// derived pagination metadata (totalPages and the prev/next page numbers, the
-// latter omitted at the edges).
+// derived pagination metadata (total_items, current_page, total_pages, limit).
 func TestProductListPaginationMeta(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test requires docker")
@@ -197,38 +198,38 @@ func TestProductListPaginationMeta(t *testing.T) {
 	}
 
 	type meta struct {
-		Total       int `json:"total"`
-		Page        int `json:"page"`
-		RowsPerPage int `json:"rowsPerPage"`
-		TotalPages  int `json:"totalPages"`
-		Prev        int `json:"prev"`
-		Next        int `json:"next"`
-		Items       []struct {
-			ID string `json:"id"`
-		} `json:"items"`
+		Data struct {
+			Items []struct {
+				ID string `json:"id"`
+			} `json:"items"`
+			Pagination struct {
+				TotalItems  int `json:"total_items"`
+				CurrentPage int `json:"current_page"`
+				TotalPages  int `json:"total_pages"`
+				Limit       int `json:"limit"`
+			} `json:"pagination"`
+		} `json:"data"`
 	}
 
-	// Page 1 of rows=2 over 5 rows: 3 pages, no prev, next=2.
+	// Page 1 of rows=2 over 5 rows: 3 pages, current page 1.
 	resp := doReq(t, srv, http.MethodGet, "/products?page=1&rows=2", "")
 	is.Equal(resp.StatusCode, http.StatusOK)
 	var p1 meta
 	decode(t, resp, &p1)
-	is.Equal(p1.Total, 5)      // total count
-	is.Equal(p1.TotalPages, 3) // ceil(5/2)
-	is.Equal(p1.Page, 1)       // first page
-	is.Equal(p1.Prev, 0)       // no previous page (omitted)
-	is.Equal(p1.Next, 2)       // next page
-	is.Equal(len(p1.Items), 2) // full page
+	is.Equal(p1.Data.Pagination.TotalItems, 5)  // total count
+	is.Equal(p1.Data.Pagination.TotalPages, 3)  // ceil(5/2)
+	is.Equal(p1.Data.Pagination.CurrentPage, 1) // first page
+	is.Equal(p1.Data.Pagination.Limit, 2)       // page size
+	is.Equal(len(p1.Data.Items), 2)             // full page
 
-	// Last page: prev=2, no next.
+	// Last page: current page 3, one remaining row.
 	resp = doReq(t, srv, http.MethodGet, "/products?page=3&rows=2", "")
 	is.Equal(resp.StatusCode, http.StatusOK)
 	var p3 meta
 	decode(t, resp, &p3)
-	is.Equal(p3.Page, 3)       // last page
-	is.Equal(p3.Prev, 2)       // previous page
-	is.Equal(p3.Next, 0)       // no next page (omitted)
-	is.Equal(len(p3.Items), 1) // remainder
+	is.Equal(p3.Data.Pagination.CurrentPage, 3) // last page
+	is.Equal(p3.Data.Pagination.TotalPages, 3)  // still three pages
+	is.Equal(len(p3.Data.Items), 1)             // remainder
 }
 
 // TestProductFilter exercises the QueryFilter path (?name, ?min_price,
@@ -260,11 +261,15 @@ func TestProductFilter(t *testing.T) {
 	}
 
 	type listResp struct {
-		Total int `json:"total"`
-		Items []struct {
-			Name  string `json:"name"`
-			Price int64  `json:"price"`
-		} `json:"items"`
+		Data struct {
+			Items []struct {
+				Name  string `json:"name"`
+				Price int64  `json:"price"`
+			} `json:"items"`
+			Pagination struct {
+				TotalItems int `json:"total_items"`
+			} `json:"pagination"`
+		} `json:"data"`
 	}
 	list := func(qs string) listResp {
 		resp := doReq(t, srv, http.MethodGet, "/products?rows=100&"+qs, "")
@@ -276,23 +281,23 @@ func TestProductFilter(t *testing.T) {
 
 	// name: case-insensitive substring.
 	byName := list("name=mouse")
-	is.Equal(byName.Total, 2)      // Count honors the filter
-	is.Equal(len(byName.Items), 2) // both mice
-	for _, it := range byName.Items {
+	is.Equal(byName.Data.Pagination.TotalItems, 2) // Count honors the filter
+	is.Equal(len(byName.Data.Items), 2)            // both mice
+	for _, it := range byName.Data.Items {
 		is.True(strings.Contains(strings.ToLower(it.Name), "mouse"))
 	}
 
 	// price: inclusive range [3000, 6000].
 	byPrice := list("min_price=3000&max_price=6000")
-	is.Equal(byPrice.Total, 2) // Apple Keyboard (5000) + Apple Mouse (3000)
-	for _, it := range byPrice.Items {
+	is.Equal(byPrice.Data.Pagination.TotalItems, 2) // Apple Keyboard (5000) + Apple Mouse (3000)
+	for _, it := range byPrice.Data.Items {
 		is.True(it.Price >= 3000 && it.Price <= 6000)
 	}
 
 	// combined name + max_price.
 	combined := list("name=apple&max_price=4000")
-	is.Equal(combined.Total, 1) // only Apple Mouse (3000)
-	is.Equal(combined.Items[0].Name, "Apple Mouse")
+	is.Equal(combined.Data.Pagination.TotalItems, 1) // only Apple Mouse (3000)
+	is.Equal(combined.Data.Items[0].Name, "Apple Mouse")
 
 	// non-numeric bound -> 400.
 	resp := doReq(t, srv, http.MethodGet, "/products?min_price=abc", "")
@@ -331,13 +336,15 @@ func TestProductOrdering(t *testing.T) {
 		resp := doReq(t, srv, http.MethodGet, "/products?rows=100&"+qs, "")
 		is.Equal(resp.StatusCode, http.StatusOK)
 		var lr struct {
-			Items []struct {
-				Name string `json:"name"`
-			} `json:"items"`
+			Data struct {
+				Items []struct {
+					Name string `json:"name"`
+				} `json:"items"`
+			} `json:"data"`
 		}
 		decode(t, resp, &lr)
-		out := make([]string, len(lr.Items))
-		for i, it := range lr.Items {
+		out := make([]string, len(lr.Data.Items))
+		for i, it := range lr.Data.Items {
 			out[i] = it.Name
 		}
 		return out

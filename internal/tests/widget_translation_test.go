@@ -73,10 +73,12 @@ func getWithLang(t *testing.T, srv *httptest.Server, path, lang string) map[stri
 func getListWithLang(t *testing.T, srv *httptest.Server, path, lang string) []map[string]any {
 	t.Helper()
 	var out struct {
-		Items []map[string]any `json:"items"`
+		Data struct {
+			Items []map[string]any `json:"items"`
+		} `json:"data"`
 	}
 	doLangReq(t, srv, path, lang, &out)
-	return out.Items
+	return out.Data.Items
 }
 
 // doLangReq performs a GET with the X-Language header and decodes the JSON body.

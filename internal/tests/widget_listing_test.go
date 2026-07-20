@@ -47,25 +47,27 @@ func TestWidgetCursorPagination(t *testing.T) {
 		is.Equal(resp.StatusCode, http.StatusOK)
 
 		var pr struct {
-			Items []struct {
-				ID string `json:"id"`
-			} `json:"items"`
-			Next string `json:"next"`
-			Prev string `json:"prev"`
+			Data struct {
+				Items []struct {
+					ID string `json:"id"`
+				} `json:"items"`
+				Next string `json:"next"`
+				Prev string `json:"prev"`
+			} `json:"data"`
 		}
 		decode(t, resp, &pr)
 
-		is.Equal(pr.Prev, "") // forward-only: prev is never emitted
-		for _, it := range pr.Items {
+		is.Equal(pr.Data.Prev, "") // forward-only: prev is never emitted
+		for _, it := range pr.Data.Items {
 			is.True(!seen[it.ID]) // no row repeats across pages
 			seen[it.ID] = true
 		}
 		pages++
-		if pr.Next == "" {
+		if pr.Data.Next == "" {
 			break
 		}
-		is.Equal(len(pr.Items), 2) // a full page precedes a next cursor
-		cursor = pr.Next
+		is.Equal(len(pr.Data.Items), 2) // a full page precedes a next cursor
+		cursor = pr.Data.Next
 		if pages > total {
 			t.Fatal("cursor did not terminate")
 		}
@@ -79,8 +81,7 @@ func TestWidgetCursorPagination(t *testing.T) {
 }
 
 // TestWidgetListPaginationMeta verifies the offset list envelope carries the
-// derived pagination metadata (totalPages and the prev/next page numbers, the
-// latter omitted at the edges).
+// derived pagination metadata (total_items, current_page, total_pages, limit).
 func TestWidgetListPaginationMeta(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test requires docker")
@@ -97,34 +98,36 @@ func TestWidgetListPaginationMeta(t *testing.T) {
 	}
 
 	type meta struct {
-		Total      int `json:"total"`
-		Page       int `json:"page"`
-		TotalPages int `json:"totalPages"`
-		Prev       int `json:"prev"`
-		Next       int `json:"next"`
-		Items      []struct {
-			ID string `json:"id"`
-		} `json:"items"`
+		Data struct {
+			Items []struct {
+				ID string `json:"id"`
+			} `json:"items"`
+			Pagination struct {
+				TotalItems  int `json:"total_items"`
+				CurrentPage int `json:"current_page"`
+				TotalPages  int `json:"total_pages"`
+				Limit       int `json:"limit"`
+			} `json:"pagination"`
+		} `json:"data"`
 	}
 
 	resp := doReq(t, srv, http.MethodGet, "/widgets?page=1&rows=2", "")
 	is.Equal(resp.StatusCode, http.StatusOK)
 	var p1 meta
 	decode(t, resp, &p1)
-	is.Equal(p1.Total, 5)      // total count
-	is.Equal(p1.TotalPages, 3) // ceil(5/2)
-	is.Equal(p1.Prev, 0)       // no previous page (omitted)
-	is.Equal(p1.Next, 2)       // next page
-	is.Equal(len(p1.Items), 2) // full page
+	is.Equal(p1.Data.Pagination.TotalItems, 5)  // total count
+	is.Equal(p1.Data.Pagination.TotalPages, 3)  // ceil(5/2)
+	is.Equal(p1.Data.Pagination.CurrentPage, 1) // first page
+	is.Equal(p1.Data.Pagination.Limit, 2)       // page size
+	is.Equal(len(p1.Data.Items), 2)             // full page
 
 	resp = doReq(t, srv, http.MethodGet, "/widgets?page=3&rows=2", "")
 	is.Equal(resp.StatusCode, http.StatusOK)
 	var p3 meta
 	decode(t, resp, &p3)
-	is.Equal(p3.Page, 3)       // last page
-	is.Equal(p3.Prev, 2)       // previous page
-	is.Equal(p3.Next, 0)       // no next page (omitted)
-	is.Equal(len(p3.Items), 1) // remainder
+	is.Equal(p3.Data.Pagination.CurrentPage, 3) // last page
+	is.Equal(p3.Data.Pagination.TotalPages, 3)  // still three pages
+	is.Equal(len(p3.Data.Items), 1)             // remainder
 }
 
 // TestWidgetFilter exercises the QueryFilter path (?name, ?description): both are
@@ -151,11 +154,15 @@ func TestWidgetFilter(t *testing.T) {
 	}
 
 	type listResp struct {
-		Total int `json:"total"`
-		Items []struct {
-			Name        string `json:"name"`
-			Description string `json:"description"`
-		} `json:"items"`
+		Data struct {
+			Items []struct {
+				Name        string `json:"name"`
+				Description string `json:"description"`
+			} `json:"items"`
+			Pagination struct {
+				TotalItems int `json:"total_items"`
+			} `json:"pagination"`
+		} `json:"data"`
 	}
 	list := func(qs string) listResp {
 		resp := doReq(t, srv, http.MethodGet, "/widgets?rows=100&"+qs, "")
@@ -167,22 +174,22 @@ func TestWidgetFilter(t *testing.T) {
 
 	// name: case-insensitive substring -> the two "Gadget"s.
 	byName := list("name=gadget")
-	is.Equal(byName.Total, 2)
-	for _, it := range byName.Items {
+	is.Equal(byName.Data.Pagination.TotalItems, 2)
+	for _, it := range byName.Data.Items {
 		is.True(strings.Contains(strings.ToLower(it.Name), "gadget"))
 	}
 
 	// description substring -> the two "red"s.
 	byDesc := list("description=red")
-	is.Equal(byDesc.Total, 2)
-	for _, it := range byDesc.Items {
+	is.Equal(byDesc.Data.Pagination.TotalItems, 2)
+	for _, it := range byDesc.Data.Items {
 		is.Equal(it.Description, "red")
 	}
 
 	// combined name + description -> Alpha Gadget only.
 	combined := list("name=gadget&description=red")
-	is.Equal(combined.Total, 1)
-	is.Equal(combined.Items[0].Name, "Alpha Gadget")
+	is.Equal(combined.Data.Pagination.TotalItems, 1)
+	is.Equal(combined.Data.Items[0].Name, "Alpha Gadget")
 }
 
 // TestWidgetOrdering exercises ?order_by against the allowlist (created_at, name):
@@ -208,13 +215,15 @@ func TestWidgetOrdering(t *testing.T) {
 		resp := doReq(t, srv, http.MethodGet, "/widgets?rows=100&"+qs, "")
 		is.Equal(resp.StatusCode, http.StatusOK)
 		var lr struct {
-			Items []struct {
-				Name string `json:"name"`
-			} `json:"items"`
+			Data struct {
+				Items []struct {
+					Name string `json:"name"`
+				} `json:"items"`
+			} `json:"data"`
 		}
 		decode(t, resp, &lr)
-		out := make([]string, len(lr.Items))
-		for i, it := range lr.Items {
+		out := make([]string, len(lr.Data.Items))
+		for i, it := range lr.Data.Items {
 			out[i] = it.Name
 		}
 		return out

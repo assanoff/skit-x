@@ -53,15 +53,19 @@ func TestWidgetCRUD(t *testing.T) {
 	listResp := doReq(t, srv, http.MethodGet, "/widgets", "")
 	assertStatus(t, listResp, http.StatusOK)
 	var list struct {
-		Items []map[string]any `json:"items"`
-		Total int              `json:"total"`
+		Data struct {
+			Items      []map[string]any `json:"items"`
+			Pagination struct {
+				TotalItems int `json:"total_items"`
+			} `json:"pagination"`
+		} `json:"data"`
 	}
 	decode(t, listResp, &list)
-	if len(list.Items) != 1 {
-		t.Fatalf("expected 1 widget, got %d", len(list.Items))
+	if len(list.Data.Items) != 1 {
+		t.Fatalf("expected 1 widget, got %d", len(list.Data.Items))
 	}
-	if list.Total != 1 {
-		t.Fatalf("expected total 1, got %d", list.Total)
+	if list.Data.Pagination.TotalItems != 1 {
+		t.Fatalf("expected total 1, got %d", list.Data.Pagination.TotalItems)
 	}
 
 	// Update.
