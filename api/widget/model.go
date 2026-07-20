@@ -134,17 +134,18 @@ func (l ResponseList) Encode() ([]byte, string, error) {
 }
 
 // PagedResponse is a page of widget responses: it embeds the SDK's
-// query.Result (items + total + page + rowsPerPage, and its Encode) and also
-// implements translation.TranslatableList over the items, so the translationrest
-// middleware still localizes each widget before the envelope is encoded.
+// query.Result (the {error_code, data:{items, pagination}} envelope and its
+// Encode) and also implements translation.TranslatableList over the items, so
+// the translationrest middleware still localizes each widget before the
+// envelope is encoded.
 type PagedResponse struct {
 	query.Result[*Response]
 }
 
 // Translatables implements translation.TranslatableList.
 func (p PagedResponse) Translatables() []translation.Translatable {
-	out := make([]translation.Translatable, len(p.Items))
-	for i, r := range p.Items {
+	out := make([]translation.Translatable, len(p.Data.Items))
+	for i, r := range p.Data.Items {
 		out[i] = r
 	}
 	return out
@@ -161,8 +162,8 @@ type CursorPagedResponse struct {
 
 // Translatables implements translation.TranslatableList.
 func (p CursorPagedResponse) Translatables() []translation.Translatable {
-	out := make([]translation.Translatable, len(p.Items))
-	for i, r := range p.Items {
+	out := make([]translation.Translatable, len(p.Data.Items))
+	for i, r := range p.Data.Items {
 		out[i] = r
 	}
 	return out
