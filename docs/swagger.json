@@ -150,16 +150,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/widget.CreateWidgetReq",
-                                        "summary": "request",
-                                        "description": "widget to create"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/widget.CreateWidgetReq",
+                                "summary": "request",
+                                "description": "widget to create"
                             }
                         }
                     },
@@ -220,16 +213,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/widget.ImportWidgetsReq",
-                                        "summary": "request",
-                                        "description": "batch to import"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/widget.ImportWidgetsReq",
+                                "summary": "request",
+                                "description": "batch to import"
                             }
                         }
                     },
@@ -259,6 +245,35 @@
                     }
                 },
                 "summary": "Bulk-import widgets (async)",
+                "tags": [
+                    "widgets"
+                ]
+            }
+        },
+        "/widgets/jsonapi": {
+            "get": {
+                "responses": {},
+                "summary": "List widgets (JSON:API)",
+                "tags": [
+                    "widgets"
+                ]
+            }
+        },
+        "/widgets/jsonapi/{id}": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "Widget ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {},
+                "summary": "Get a widget (JSON:API)",
                 "tags": [
                     "widgets"
                 ]
@@ -352,16 +367,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/widget.UpdateWidgetReq",
-                                        "summary": "request",
-                                        "description": "fields to update"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/widget.UpdateWidgetReq",
+                                "summary": "request",
+                                "description": "fields to update"
                             }
                         }
                     },
@@ -423,16 +431,9 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/widget.TranslateWidgetReq",
-                                        "summary": "request",
-                                        "description": "translation to save"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/widget.TranslateWidgetReq",
+                                "summary": "request",
+                                "description": "translation to save"
                             }
                         }
                     },

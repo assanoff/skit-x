@@ -103,11 +103,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/widget.CreateWidgetReq'
-                description: widget to create
-                summary: request
+              $ref: '#/components/schemas/widget.CreateWidgetReq'
+              description: widget to create
+              summary: request
         description: widget to create
         required: true
       responses:
@@ -183,11 +181,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/widget.UpdateWidgetReq'
-                description: fields to update
-                summary: request
+              $ref: '#/components/schemas/widget.UpdateWidgetReq'
+              description: fields to update
+              summary: request
         description: fields to update
         required: true
       responses:
@@ -225,11 +221,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/widget.TranslateWidgetReq'
-                description: translation to save
-                summary: request
+              $ref: '#/components/schemas/widget.TranslateWidgetReq'
+              description: translation to save
+              summary: request
         description: translation to save
         required: true
       responses:
@@ -266,11 +260,9 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/widget.ImportWidgetsReq'
-                description: batch to import
-                summary: request
+              $ref: '#/components/schemas/widget.ImportWidgetsReq'
+              description: batch to import
+              summary: request
         description: batch to import
         required: true
       responses:
@@ -287,5 +279,24 @@ paths:
                 type: string
           description: invalid argument
       summary: Bulk-import widgets (async)
+      tags:
+      - widgets
+  /widgets/jsonapi:
+    get:
+      responses: {}
+      summary: List widgets (JSON:API)
+      tags:
+      - widgets
+  /widgets/jsonapi/{id}:
+    get:
+      parameters:
+      - description: Widget ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses: {}
+      summary: Get a widget (JSON:API)
       tags:
       - widgets
