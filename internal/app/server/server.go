@@ -256,9 +256,8 @@ func buildGRPCServer(ctx context.Context, cfg config.GRPC, d *deps.Deps, m *metr
 			MetricsNamespace: "skit",
 			// Performance: messages use the protobuf Opaque API (edition 2023);
 			// tune transport here.
-			MaxRecvMsgSize:    cfg.MaxRecvMiB * miB,
-			MaxSendMsgSize:    cfg.MaxSendMiB * miB,
-			SharedWriteBuffer: true,
+			MaxRecvMsgSize: cfg.MaxRecvMiB * miB,
+			MaxSendMsgSize: cfg.MaxSendMiB * miB,
 			Keepalive: grpcserver.KeepaliveConfig{
 				MaxConnectionIdle:   15 * time.Minute,
 				Time:                2 * time.Minute,
