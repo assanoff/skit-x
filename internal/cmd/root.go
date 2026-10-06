@@ -18,11 +18,20 @@ import (
 )
 
 // Opts declares the available subcommands.
+//
+// The four long-running commands run the same binary with a different list of
+// options (server.WithServer / WithGRPC / WithGateway / WithWorkers /
+// WithConsumers, see internal/app/server/options.go): serve = everything in one
+// process, the others split it across pods. Each of them lists a server with
+// server.Debug on DEBUG_ADDR, so probes work whatever the process runs.
 type Opts struct {
-	Serve   ServeCommand   `command:"serve" description:"run the REST and/or gRPC server"`
-	Migrate MigrateCommand `command:"migrate" description:"apply database migrations (up|down|status)"`
-	Count   CountCommand   `command:"count" description:"print the number of widgets (DB-only command demo)"`
-	Version VersionCommand `command:"version" description:"print the build version"`
+	Serve    ServeCommand    `command:"serve" description:"run everything in one process: transports + workers + consumers"`
+	HTTP     HTTPCommand     `command:"http" description:"run the transports only (REST/gRPC/gateway), scale to N replicas"`
+	Worker   WorkerCommand   `command:"worker" description:"run the background workers only (single replica)"`
+	Consumer ConsumerCommand `command:"consumer" description:"run the queue consumers only"`
+	Migrate  MigrateCommand  `command:"migrate" description:"apply database migrations (up|down|status)"`
+	Count    CountCommand    `command:"count" description:"print the number of widgets (DB-only command demo)"`
+	Version  VersionCommand  `command:"version" description:"print the build version"`
 }
 
 // Execute loads .env, parses flags/env, and runs the selected subcommand.

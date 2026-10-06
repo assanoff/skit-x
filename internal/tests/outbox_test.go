@@ -6,8 +6,8 @@ import (
 	"io"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 
 	auditdb "github.com/assanoff/skit/auditlog/db"
@@ -54,7 +54,7 @@ func TestOutboxStoreFSM(t *testing.T) {
 		if got == nil {
 			t.Fatalf("inserted event not leased")
 		}
-		if got.Status != outbox.StatusInFlight || got.LeaseID == uuid.Nil {
+		if got.Status != outbox.StatusInFlight || got.LeaseID == uuid.Nil() {
 			t.Fatalf("leased event not in_flight with a lease: %+v", got)
 		}
 
@@ -203,7 +203,7 @@ func statusOf(t *testing.T, db *sqlx.DB, id uuid.UUID) string {
 	t.Helper()
 	var status string
 	if err := db.GetContext(context.Background(), &status,
-		`SELECT status FROM outbox_events WHERE id = $1`, id); err != nil {
+		`SELECT status FROM outbox_events WHERE id = $1`, dbx.UUID(id)); err != nil {
 		t.Fatalf("query status: %v", err)
 	}
 	return status

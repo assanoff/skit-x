@@ -8,8 +8,7 @@ import (
 	"context"
 	"errors"
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 
 	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/errs"

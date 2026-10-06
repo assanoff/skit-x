@@ -17,8 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 
 	"github.com/assanoff/skit/logger"
 	"github.com/assanoff/skit/queue"

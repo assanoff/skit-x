@@ -2,15 +2,17 @@ package userdb
 
 import (
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
+	"github.com/assanoff/skit/dbx"
 
 	"github.com/assanoff/skit-x/core/user"
 )
 
-// dbUser is the database representation of a user.
+// dbUser is the database representation of a user. The id is a
+// dbx.UUID: the stdlib uuid.UUID has no sql.Scanner / driver.Valuer.
 type dbUser struct {
-	ID        uuid.UUID `db:"id"`
+	ID        dbx.UUID  `db:"id"`
 	Email     string    `db:"email"`
 	Name      string    `db:"name"`
 	CreatedAt time.Time `db:"created_at"`
@@ -19,7 +21,7 @@ type dbUser struct {
 
 func toDBUser(u user.User) dbUser {
 	return dbUser{
-		ID:        u.ID,
+		ID:        dbx.UUID(u.ID),
 		Email:     u.Email,
 		Name:      u.Name,
 		CreatedAt: u.CreatedAt.UTC(),
@@ -29,7 +31,7 @@ func toDBUser(u user.User) dbUser {
 
 func toCoreUser(r dbUser) user.User {
 	return user.User{
-		ID:        r.ID,
+		ID:        uuid.UUID(r.ID),
 		Email:     r.Email,
 		Name:      r.Name,
 		CreatedAt: r.CreatedAt.In(time.UTC),

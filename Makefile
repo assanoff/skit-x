@@ -79,6 +79,21 @@ build-cover: ## Cross-compile a static linux coverage-instrumented binary (for t
 run: ## Run the server (go run . serve). Ctrl+C shuts down gracefully (not a make error).
 	@trap 'exit 0' INT; $(GO) run -ldflags "$(LDFLAGS)" . serve
 
+# These commands run the same binary with a subset of the options, the way the
+# split deployment does (see internal/app/server/options.go). Ports are shifted
+# so all three can run side by side against one database.
+.PHONY: run-http
+run-http: ## Run the transports only on :8080, debug on :6060
+	@trap 'exit 0' INT; $(GO) run -ldflags "$(LDFLAGS)" . http
+
+.PHONY: run-worker
+run-worker: ## Run the background workers only, debug on :6061
+	@trap 'exit 0' INT; DEBUG_ADDR=localhost:6061 $(GO) run -ldflags "$(LDFLAGS)" . worker
+
+.PHONY: run-consumer
+run-consumer: ## Run the queue consumers only, debug on :6062
+	@trap 'exit 0' INT; DEBUG_ADDR=localhost:6062 BROKER_ENABLED=true $(GO) run -ldflags "$(LDFLAGS)" . consumer
+
 # ---------------------------------------------------------------------------
 # Test
 # ---------------------------------------------------------------------------

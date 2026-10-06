@@ -2,8 +2,7 @@ package product
 
 import (
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 
 	"github.com/assanoff/skit/order"
 )

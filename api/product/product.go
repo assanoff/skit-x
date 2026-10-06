@@ -13,8 +13,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-
-	"github.com/google/uuid"
+	"uuid"
 
 	"github.com/assanoff/skit/errs"
 	"github.com/assanoff/skit/order"

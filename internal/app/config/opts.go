@@ -74,11 +74,11 @@ type Gateway struct {
 	Addr string `long:"addr" env:"ADDR" default:":8081" description:"grpc-gateway listen address (empty disables it; requires the gRPC server)"`
 }
 
-// Debug serves the status endpoints (pprof + metrics + health) on its own
-// internal port. Like the other servers it starts iff Addr is non-empty, so
-// DEBUG_ADDR="" turns the status server off.
+// Debug is where the commands serve the technical routes (server.Debug: health,
+// metrics, pprof, /debug/components) — an internal port of their own. Like the
+// other servers it starts iff Addr is non-empty, so DEBUG_ADDR="" turns it off.
 type Debug struct {
-	Addr string `long:"addr" env:"ADDR" default:"localhost:6060" description:"status listen address — pprof, metrics, health (empty disables it)"`
+	Addr string `long:"addr" env:"ADDR" default:"localhost:6060" description:"technical routes listen address — health, metrics, pprof, components (empty disables it)"`
 }
 
 // DB holds Postgres connection settings.

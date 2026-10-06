@@ -2,15 +2,17 @@ package widgetdb
 
 import (
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
+	"github.com/assanoff/skit/dbx"
 
 	"github.com/assanoff/skit-x/core/widget"
 )
 
-// dbWidget is the database representation of a widget.
+// dbWidget is the database representation of a widget. The id is a
+// dbx.UUID: the stdlib uuid.UUID has no sql.Scanner / driver.Valuer.
 type dbWidget struct {
-	ID          uuid.UUID `db:"id"`
+	ID          dbx.UUID  `db:"id"`
 	Name        string    `db:"name"`
 	Description string    `db:"description"`
 	CreatedAt   time.Time `db:"created_at"`
@@ -19,7 +21,7 @@ type dbWidget struct {
 
 func toDBWidget(w widget.Widget) dbWidget {
 	return dbWidget{
-		ID:          w.ID,
+		ID:          dbx.UUID(w.ID),
 		Name:        w.Name,
 		Description: w.Description,
 		CreatedAt:   w.CreatedAt.UTC(),
@@ -29,7 +31,7 @@ func toDBWidget(w widget.Widget) dbWidget {
 
 func toCoreWidget(r dbWidget) widget.Widget {
 	return widget.Widget{
-		ID:          r.ID,
+		ID:          uuid.UUID(r.ID),
 		Name:        r.Name,
 		Description: r.Description,
 		CreatedAt:   r.CreatedAt.In(time.UTC),

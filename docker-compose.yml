@@ -12,3 +12,19 @@ services:
       interval: 2s
       timeout: 3s
       retries: 15
+
+  # Needed by the broker pipeline (BROKER_ENABLED=true): the outbox relay runs
+  # by the worker command, the widget-audit consumer by the consumer command.
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 15

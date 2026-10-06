@@ -66,7 +66,7 @@ func TestWidgetOutboxE2E(t *testing.T) {
 
 	store := outbox.NewPG(log, db, outbox.Options{})
 	reg := outbox.NewRegistry()
-	if err := outbox.Register[widget.Created](reg, widget.EventWidgetCreated, exchange, outbox.WithKey(routingKey)); err != nil {
+	if err := reg.Register[widget.Created](widget.EventWidgetCreated, exchange, outbox.WithKey(routingKey)); err != nil {
 		t.Fatalf("register route: %v", err)
 	}
 	wstore := widgetdb.NewStore(log, db)

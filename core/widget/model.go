@@ -2,8 +2,7 @@ package widget
 
 import (
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 
 	"github.com/assanoff/skit/order"
 )
@@ -76,7 +75,7 @@ var DefaultOrder = order.NewBy(OrderByCreatedAt, order.DESC)
 // Created is the domain event emitted when a widget is created. It is a plain
 // payload type: the domain publishes it through outbox.Publisher and the
 // Registry (wired at startup) maps it to its transport route. Register it once
-// with outbox.Register[Created](reg, EventWidgetCreated, topic, ...).
+// with reg.Register[Created](EventWidgetCreated, topic, ...).
 type Created struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`

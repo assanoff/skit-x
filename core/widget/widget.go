@@ -9,8 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 
 	"github.com/assanoff/skit/auditlog/auditbus"

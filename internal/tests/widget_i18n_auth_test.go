@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"uuid"
 
 	jwt "github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 
 	"github.com/assanoff/skit/logger"
 
@@ -26,7 +26,7 @@ func TestWidgetErrorLocalization(t *testing.T) {
 	}
 	ctx := context.Background()
 	srv, _ := newTestServer(ctx, t)
-	missing := "/widgets/" + uuid.NewString()
+	missing := "/widgets/" + uuid.New().String()
 
 	// Default (no Accept-Language) -> English.
 	en := doReq(t, srv, http.MethodGet, missing, "")

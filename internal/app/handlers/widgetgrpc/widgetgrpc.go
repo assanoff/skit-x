@@ -7,8 +7,8 @@ package widgetgrpc
 
 import (
 	"context"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -128,7 +128,7 @@ func (h *Handler) DeleteWidget(ctx context.Context, req *widgetv1.DeleteWidgetRe
 func parseID(s string) (uuid.UUID, error) {
 	id, err := uuid.Parse(s)
 	if err != nil {
-		return uuid.Nil, errs.Newf(errs.InvalidArgument, "invalid id %q", s)
+		return uuid.Nil(), errs.Newf(errs.InvalidArgument, "invalid id %q", s)
 	}
 	return id, nil
 }

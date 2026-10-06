@@ -7,8 +7,8 @@ package widgetaudit
 
 import (
 	"context"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -66,10 +66,10 @@ func (r *Recorder) Handle(ctx context.Context, m broker.Message) broker.Action {
 		VALUES (:event_id, :type, :payload)
 		ON CONFLICT (event_id) DO NOTHING`
 	arg := struct {
-		EventID uuid.UUID `db:"event_id"`
-		Type    string    `db:"type"`
-		Payload []byte    `db:"payload"`
-	}{EventID: id, Type: m.Type, Payload: m.Data}
+		EventID dbx.UUID `db:"event_id"`
+		Type    string   `db:"type"`
+		Payload []byte   `db:"payload"`
+	}{EventID: dbx.UUID(id), Type: m.Type, Payload: m.Data}
 
 	if err := dbx.NamedExecContext(ctx, r.log, r.db, q, arg); err != nil {
 		span.RecordError(err)

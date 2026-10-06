@@ -1,41 +1,27 @@
 package cmd
 
 import (
-	"context"
-
-	"github.com/assanoff/skit/app"
-
 	"github.com/assanoff/skit-x/internal/app/config"
 	"github.com/assanoff/skit-x/internal/app/server"
 )
 
-// ServeCommand runs the long-lived server. It embeds ServerOpts so go-flags
-// fills the configuration directly from flags and environment.
+// ServeCommand runs everything in one process: the REST API, the gRPC server
+// and its gateway, the technical routes, the background workers and the queue
+// consumers. This is the default for local development and single-pod
+// deployments; the http / worker / consumer commands split the same binary
+// across pods.
 type ServeCommand struct {
 	config.ServerOpts
 }
 
 // Execute implements flags.Commander.
 func (c *ServeCommand) Execute(_ []string) error {
-	cfg := c.ServerOpts
-	if err := cfg.Validate(); err != nil {
-		return err
-	}
-	log := buildLogger(cfg)
-	ctx := context.Background()
-
-	log.Info(ctx, "starting service",
-		"env", cfg.Env, "http", cfg.HTTP.Addr, "grpc", cfg.GRPC.Addr, "gateway", cfg.Gateway.Addr)
-
-	a, err := server.New(ctx, cfg, log)
-	if err != nil {
-		return err
-	}
-
-	// app.Run owns the signal context, the worker.Group supervision, and the
-	// global closer (LIFO resource release) — see internal/app/deps + provider.
-	return app.Run(ctx, app.RunConfig{
-		Logger:          log.Slog(),
-		ShutdownTimeout: cfg.HTTP.ShutdownTimeout,
-	}, a.Runnables()...)
+	return run(c.ServerOpts,
+		server.WithServer(c.HTTP.Addr, server.Install),
+		server.WithGRPC(c.GRPC.Addr),
+		server.WithGateway(c.Gateway.Addr, c.GRPC.Addr),
+		server.WithServer(c.Debug.Addr, server.Debug),
+		server.WithWorkers(),
+		server.WithConsumers(),
+	)
 }

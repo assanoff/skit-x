@@ -5,8 +5,8 @@ import (
 	"io"
 	"net"
 	"testing"
+	"uuid"
 
-	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -97,7 +97,7 @@ func TestWidgetGRPC(t *testing.T) {
 	}
 
 	// Unknown id -> NotFound.
-	_, err = client.GetWidget(ctx, widgetv1.GetWidgetRequest_builder{Id: uuid.NewString()}.Build())
+	_, err = client.GetWidget(ctx, widgetv1.GetWidgetRequest_builder{Id: uuid.New().String()}.Build())
 	if status.Code(err) != codes.NotFound {
 		t.Fatalf("expected NotFound, got %v (%v)", status.Code(err), err)
 	}

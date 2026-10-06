@@ -2,15 +2,17 @@ package productdb
 
 import (
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
+	"github.com/assanoff/skit/dbx"
 
 	"github.com/assanoff/skit-x/core/product"
 )
 
-// dbProduct is the database representation of a product.
+// dbProduct is the database representation of a product. The id is a
+// dbx.UUID: the stdlib uuid.UUID has no sql.Scanner / driver.Valuer.
 type dbProduct struct {
-	ID        uuid.UUID `db:"id"`
+	ID        dbx.UUID  `db:"id"`
 	Name      string    `db:"name"`
 	Price     int64     `db:"price"`
 	CreatedAt time.Time `db:"created_at"`
@@ -19,7 +21,7 @@ type dbProduct struct {
 
 func toDBProduct(p product.Product) dbProduct {
 	return dbProduct{
-		ID:        p.ID,
+		ID:        dbx.UUID(p.ID),
 		Name:      p.Name,
 		Price:     p.Price,
 		CreatedAt: p.CreatedAt.UTC(),
@@ -29,7 +31,7 @@ func toDBProduct(p product.Product) dbProduct {
 
 func toCoreProduct(r dbProduct) product.Product {
 	return product.Product{
-		ID:        r.ID,
+		ID:        uuid.UUID(r.ID),
 		Name:      r.Name,
 		Price:     r.Price,
 		CreatedAt: r.CreatedAt.In(time.UTC),

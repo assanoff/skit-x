@@ -45,7 +45,7 @@ func (n *Notifier) Register(bus *eventbus.Bus) {
 }
 
 func (n *Notifier) handle(ctx context.Context, d eventbus.Data) error {
-	ev, err := eventbus.Decode[widget.Created](d)
+	ev, err := d.Decode[widget.Created]()
 	if err != nil {
 		return err
 	}
