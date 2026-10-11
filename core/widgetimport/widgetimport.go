@@ -114,9 +114,11 @@ func (im *Importer) NewLoop(cfg Config) *worker.Loop {
 		worker.HandlerFunc[queue.Task](im.Handle),
 		im.q, // Sink: MarkDone/MarkFailed
 		worker.ProcessorConfig{
-			Name:       Kind,
-			BatchSize:  cfg.BatchSize,
-			IsTerminal: func(err error) bool { return errors.Is(err, ErrBadPayload) },
+			Name:      Kind,
+			BatchSize: cfg.BatchSize,
+			IsTerminal: func(err error) bool {
+				return errors.Is(err, ErrBadPayload)
+			},
 		},
 	)
 	return worker.NewLoop(im.log.Slog(), worker.LoopConfig{

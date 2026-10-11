@@ -31,7 +31,7 @@ func TestWidgetImportEndpoint(t *testing.T) {
 
 	body := `{"name":"batch-a","widgets":[{"name":"ep-1"},{"name":"ep-2","description":"two"}]}`
 	resp := mustDo(t, srv, http.MethodPost, "/widgets/import", body, http.StatusAccepted)
-	if resp["scheduled"] != true {
+	if scheduled, ok := resp["scheduled"].(bool); !ok || !scheduled {
 		t.Fatalf("expected scheduled=true, got %v", resp)
 	}
 	if resp["count"] != float64(2) {
@@ -40,7 +40,7 @@ func TestWidgetImportEndpoint(t *testing.T) {
 
 	// Re-posting the same dedup name is accepted but not re-enqueued.
 	dup := mustDo(t, srv, http.MethodPost, "/widgets/import", body, http.StatusAccepted)
-	if dup["scheduled"] != false {
+	if scheduled, ok := dup["scheduled"].(bool); !ok || scheduled {
 		t.Errorf("expected dedup scheduled=false, got %v", dup)
 	}
 

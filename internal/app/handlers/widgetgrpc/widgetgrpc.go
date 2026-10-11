@@ -23,6 +23,7 @@ import (
 // Handler implements widgetv1.WidgetServiceServer.
 type Handler struct {
 	widgetv1.UnimplementedWidgetServiceServer
+
 	core *widget.Core
 }
 

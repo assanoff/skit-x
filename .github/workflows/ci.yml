@@ -11,20 +11,25 @@ permissions:
 # The module uses `replace github.com/assanoff/skit => ../skit`, so
 # the SDK must sit next to this repo. Every job checks both repos out into
 # sibling directories under the workspace and runs from ./skit-x.
+#
+# Go comes from the go directive in go.mod; check-latest picks the newest patch
+# release, so stdlib fixes arrive without a toolchain bump. Actions are pinned
+# by commit SHA; Dependabot keeps the SHAs and version comments current.
 jobs:
   build-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           path: skit-x
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: assanoff/skit
           path: skit
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: "1.26"
+          go-version-file: skit-x/go.mod
+          check-latest: true
           cache-dependency-path: skit-x/go.sum
       - name: Build
         working-directory: skit-x
@@ -34,27 +39,31 @@ jobs:
         run: go vet ./...
       - name: Test
         working-directory: skit-x
-        run: go test -race -short ./...
+        run: make test
 
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           path: skit-x
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: assanoff/skit
           path: skit
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: "1.26"
-      # v7+ installs golangci-lint v2 (v6 shipped v1, built with an older Go that
-      # rejects a go 1.26 module and our version: "2" config).
-      - uses: golangci/golangci-lint-action@v7
+          go-version-file: skit-x/go.mod
+          check-latest: true
+          cache-dependency-path: skit-x/go.sum
+      # Keep version in sync with GOLANGCI in the Makefile.
+      - uses: golangci/golangci-lint-action@9fae48acfc02a90574d7c304a1758ef9895495fa # v7.0.1
         with:
-          version: v2.12.2
+          version: v2.14.0
           working-directory: skit-x
+      - name: Project rules, go fix and go.mod checks
+        working-directory: skit-x
+        run: make lint-rules fix-check tidy-check
 
   # Integration tests stand up Postgres and RabbitMQ via testcontainers; the
   # ubuntu runner ships with Docker, so they run unguarded here (locally they
@@ -62,16 +71,17 @@ jobs:
   integration:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           path: skit-x
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: assanoff/skit
           path: skit
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: "1.26"
+          go-version-file: skit-x/go.mod
+          check-latest: true
           cache-dependency-path: skit-x/go.sum
       - name: Integration tests
         working-directory: skit-x
@@ -80,28 +90,32 @@ jobs:
   # Contract diff gates. This service exposes three contracts to consumers; each
   # is diffed against the latest release tag (or the default branch before the
   # first tag). On v0.x these report but never fail the build — a major bump is a
-  # deliberate decision (see the Makefile release targets).
+  # deliberate decision (see the Makefile release targets). The Go and REST
+  # tools run through the Makefile, which pins their versions.
   contract:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           path: skit-x
           fetch-depth: 0 # tags + history needed for the baselines
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: assanoff/skit
           path: skit
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: "1.26"
-      - uses: bufbuild/buf-setup-action@v1
+          go-version-file: skit-x/go.mod
+          check-latest: true
+          cache-dependency-path: skit-x/go.sum
+      - uses: bufbuild/buf-action@85aebf73123b5c15fd5528aaecbf9129cddf7fa7 # v1.6.0
         with:
-          github_token: ${{ github.token }}
+          version: 1.73.0
+          setup_only: true
 
       - name: Go API (gorelease)
         working-directory: skit-x
-        run: go run golang.org/x/exp/cmd/gorelease@latest || true
+        run: make gorelease || true
 
       - name: gRPC (buf breaking)
         working-directory: skit-x
@@ -113,16 +127,9 @@ jobs:
 
       - name: REST (oasdiff)
         working-directory: skit-x
-        # Regenerate the spec, then diff it against the spec committed at the
-        # latest tag. Skipped until the first tag exists.
+        # Regenerate the spec (a swag failure fails the step), then diff it
+        # against the spec committed at the latest tag; breaking-rest skips
+        # until the first tag exists.
         run: |
-          go run github.com/swaggo/swag/v2/cmd/swag@latest init \
-            -g main.go -o docs --v3.1 --ot json,yaml --parseDependency --parseInternal
-          cur=$(git tag --list 'v*' | sort -V | tail -1)
-          if [ -z "$cur" ]; then echo "no tag yet — REST baseline unavailable, skipping"; exit 0; fi
-          base=$(mktemp)
-          if ! git show "$cur:docs/swagger.json" > "$base" 2>/dev/null; then
-            echo "no docs/swagger.json at $cur, skipping"; exit 0
-          fi
-          go run github.com/oasdiff/oasdiff@latest breaking "$base" docs/swagger.json \
-            || echo "::warning::REST contract has a breaking change — bump a major"
+          make openapi
+          make breaking-rest || echo "::warning::REST contract has a breaking change — bump a major"

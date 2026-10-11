@@ -39,7 +39,17 @@ func TestOutboxStoreFSM(t *testing.T) {
 		Backoff: retry.Backoff{Base: time.Millisecond, Factor: 1, Max: time.Millisecond},
 	})
 
-	t.Run("insert lease and mark sent", func(t *testing.T) {
+	t.Run("insert lease and mark sent", outboxLeaseAndMarkSent(ctx, store, db))
+	t.Run("retry then terminal failure", outboxRetryThenFail(ctx, store, db))
+	t.Run("sweep reclaims expired lease", outboxSweepExpiredLease(ctx, store, db))
+	t.Run("cleanup deletes terminal rows", outboxCleanupTerminal(ctx, store))
+	t.Run("stats reports backlog", outboxStatsBacklog(ctx, store))
+}
+
+// outboxLeaseAndMarkSent checks that an inserted event is leased once and
+// marked sent, and that a re-mark with the stale lease is ErrLeaseLost.
+func outboxLeaseAndMarkSent(ctx context.Context, store *outbox.PG, db *sqlx.DB) func(*testing.T) {
+	return func(t *testing.T) {
 		ev := mustNewEvent(t, "test.created")
 		if err := store.Insert(ctx, ev); err != nil {
 			t.Fatalf("insert: %v", err)
@@ -75,9 +85,13 @@ func TestOutboxStoreFSM(t *testing.T) {
 		if err := store.MarkSent(ctx, *got, got.LeaseID, now); !errors.Is(err, outbox.ErrLeaseLost) {
 			t.Errorf("expected ErrLeaseLost on re-mark, got %v", err)
 		}
-	})
+	}
+}
 
-	t.Run("retry then terminal failure", func(t *testing.T) {
+// outboxRetryThenFail checks that a retryable failure returns the event to
+// pending and the failure that reaches MaxAttempts makes it terminal.
+func outboxRetryThenFail(ctx context.Context, store *outbox.PG, db *sqlx.DB) func(*testing.T) {
+	return func(t *testing.T) {
 		ev := mustNewEvent(t, "test.fails")
 		ev.MaxAttempts = 2
 		if err := store.Insert(ctx, ev); err != nil {
@@ -111,9 +125,13 @@ func TestOutboxStoreFSM(t *testing.T) {
 		if s := statusOf(t, db, ev.ID); s != outbox.StatusFailed {
 			t.Errorf("after attempt 2 status = %q, want failed", s)
 		}
-	})
+	}
+}
 
-	t.Run("sweep reclaims expired lease", func(t *testing.T) {
+// outboxSweepExpiredLease checks that the sweep returns an in_flight event
+// whose lease expired to pending.
+func outboxSweepExpiredLease(ctx context.Context, store *outbox.PG, db *sqlx.DB) func(*testing.T) {
+	return func(t *testing.T) {
 		ev := mustNewEvent(t, "test.sweep")
 		if err := store.Insert(ctx, ev); err != nil {
 			t.Fatalf("insert: %v", err)
@@ -134,9 +152,13 @@ func TestOutboxStoreFSM(t *testing.T) {
 		if s := statusOf(t, db, ev.ID); s != outbox.StatusPending {
 			t.Errorf("after sweep status = %q, want pending", s)
 		}
-	})
+	}
+}
 
-	t.Run("cleanup deletes terminal rows", func(t *testing.T) {
+// outboxCleanupTerminal checks that Cleanup deletes terminal rows past
+// retention.
+func outboxCleanupTerminal(ctx context.Context, store *outbox.PG) func(*testing.T) {
+	return func(t *testing.T) {
 		ev := mustNewEvent(t, "test.cleanup")
 		if err := store.Insert(ctx, ev); err != nil {
 			t.Fatalf("insert: %v", err)
@@ -156,9 +178,13 @@ func TestOutboxStoreFSM(t *testing.T) {
 		if deleted < 1 {
 			t.Errorf("expected to delete >=1 terminal row, got %d", deleted)
 		}
-	})
+	}
+}
 
-	t.Run("stats reports backlog", func(t *testing.T) {
+// outboxStatsBacklog checks that Stats reports the pending count and the age
+// of the oldest pending event.
+func outboxStatsBacklog(ctx context.Context, store *outbox.PG) func(*testing.T) {
+	return func(t *testing.T) {
 		// A fresh pending event with a created_at in the past so OldestPendingAge
 		// is measurable (the stats query exercises FILTER + EXTRACT(EPOCH ...)).
 		ev := mustNewEvent(t, "test.stats")
@@ -178,7 +204,7 @@ func TestOutboxStoreFSM(t *testing.T) {
 		if st.OldestPendingAge < 20*time.Second {
 			t.Errorf("oldest pending age = %s, want >=20s", st.OldestPendingAge)
 		}
-	})
+	}
 }
 
 func mustNewEvent(t *testing.T, typ string) outbox.Event {

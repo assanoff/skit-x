@@ -2,6 +2,7 @@ package product
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/assanoff/skit/errs"
@@ -17,11 +18,14 @@ type CreateProductReq struct {
 
 // Decode implements rest.Decoder.
 func (req *CreateProductReq) Decode(data []byte) error {
-	return json.Unmarshal(data, req)
+	if err := json.Unmarshal(data, req); err != nil {
+		return fmt.Errorf("decode create product: %w", err)
+	}
+	return nil
 }
 
 // Validate validates the request via its struct tags.
-func (req CreateProductReq) Validate() error {
+func (req *CreateProductReq) Validate() error {
 	return errs.Check(req)
 }
 
@@ -33,11 +37,14 @@ type UpdateProductReq struct {
 
 // Decode implements rest.Decoder.
 func (req *UpdateProductReq) Decode(data []byte) error {
-	return json.Unmarshal(data, req)
+	if err := json.Unmarshal(data, req); err != nil {
+		return fmt.Errorf("decode update product: %w", err)
+	}
+	return nil
 }
 
 // Validate validates the request via its struct tags.
-func (req UpdateProductReq) Validate() error {
+func (req *UpdateProductReq) Validate() error {
 	return errs.Check(req)
 }
 
@@ -53,8 +60,11 @@ type Response struct {
 
 // Encode implements rest.ResponseEncoder.
 func (r *Response) Encode() ([]byte, string, error) {
-	b, err := json.Marshal(r)
-	return b, "application/json", err
+	data, err := json.Marshal(r)
+	if err != nil {
+		return nil, "", fmt.Errorf("encode product: %w", err)
+	}
+	return data, "application/json", nil
 }
 
 func toResponse(p productcore.Product) *Response {

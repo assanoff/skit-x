@@ -2,6 +2,7 @@ package deps
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/assanoff/skit/auth"
@@ -27,7 +28,7 @@ var initAuth = func(c *Deps) (dim.CleanupFunc, error) {
 		return nil, nil
 	}
 	if c.Opts.Auth.JWTSecret == "" {
-		return nil, fmt.Errorf("init auth: auth enabled but jwt-secret is empty")
+		return nil, errors.New("init auth: auth enabled but jwt-secret is empty")
 	}
 	verifier, err := auth.NewJWTVerifier(auth.JWTConfig{
 		HMACSecret: []byte(c.Opts.Auth.JWTSecret),

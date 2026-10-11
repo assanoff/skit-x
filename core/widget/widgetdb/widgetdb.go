@@ -34,7 +34,9 @@ type Option func(*Store)
 
 // WithDialect overrides the SQL dialect used to compose engine-specific SQL
 // (pagination). Defaults to dialect.Postgres.
-func WithDialect(d dialect.Dialect) Option { return func(s *Store) { s.dialect = d } }
+func WithDialect(d dialect.Dialect) Option {
+	return func(s *Store) { s.dialect = d }
+}
 
 // NewStore builds a Store. Pass a *sqlx.DB for pool-backed use.
 func NewStore(log *logger.Logger, db *sqlx.DB, opts ...Option) *Store {

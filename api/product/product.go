@@ -127,27 +127,28 @@ func parseProductFilter(q url.Values) (productcore.QueryFilter, error) {
 		f.Name = &name
 	}
 
-	var err error
-	if f.MinPrice, err = parseOptInt(q.Get("min_price")); err != nil {
-		return productcore.QueryFilter{}, errs.Newf(errs.InvalidArgument, "invalid min_price: %v", err)
+	if err := parseOptInt(q, "min_price", &f.MinPrice); err != nil {
+		return productcore.QueryFilter{}, err
 	}
-	if f.MaxPrice, err = parseOptInt(q.Get("max_price")); err != nil {
-		return productcore.QueryFilter{}, errs.Newf(errs.InvalidArgument, "invalid max_price: %v", err)
+	if err := parseOptInt(q, "max_price", &f.MaxPrice); err != nil {
+		return productcore.QueryFilter{}, err
 	}
 	return f, nil
 }
 
-// parseOptInt parses an optional int64 query param: empty -> nil (not applied),
-// non-numeric -> error.
-func parseOptInt(s string) (*int64, error) {
+// parseOptInt parses the optional int64 query param key into dst: an absent
+// param leaves dst nil (not applied), a non-numeric one is an InvalidArgument.
+func parseOptInt(q url.Values, key string, dst **int64) error {
+	s := q.Get(key)
 	if s == "" {
-		return nil, nil
+		return nil
 	}
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return nil, err
+		return errs.Newf(errs.InvalidArgument, "invalid %s: %v", key, err)
 	}
-	return &n, nil
+	*dst = &n
+	return nil
 }
 
 // queryByID returns one product by id.

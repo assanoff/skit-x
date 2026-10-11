@@ -104,26 +104,7 @@ func (c *Core) Create(ctx context.Context, nw NewWidget) (Widget, error) {
 		UpdatedAt:   now,
 	}
 
-	var err error
-	if c.outbox == nil {
-		err = c.store.Create(ctx, w)
-	} else {
-		// The domain emits a plain typed event; it knows nothing about the
-		// transaction's mechanics or the transport. pub records it in the same
-		// transaction as the widget write, so both commit (or roll back) together.
-		err = outbox.WithinTran(ctx, c.log, c.db, c.outbox, c.reg, func(tx *sqlx.Tx, pub outbox.Publisher) error {
-			if cerr := c.store.WithTx(tx).Create(ctx, w); cerr != nil {
-				return cerr
-			}
-			return pub.Publish(ctx, Created{
-				ID:          w.ID.String(),
-				Name:        w.Name,
-				Description: w.Description,
-				CreatedAt:   w.CreatedAt,
-			})
-		})
-	}
-	if err != nil {
+	if err := c.insert(ctx, w); err != nil {
 		if errors.Is(err, dbx.ErrDBDuplicatedEntry) {
 			return Widget{}, errs.Newf(errs.AlreadyExists, "widget %q already exists", nw.Name).
 				WithMessageID("widget.already_exists").
@@ -157,6 +138,28 @@ func (c *Core) Count(ctx context.Context, filter QueryFilter) (int, error) {
 		return 0, errs.New(errs.Internal, err)
 	}
 	return n, nil
+}
+
+// insert writes the widget. With WithOutbox it also records a widget.created
+// event in the same transaction (transactional outbox).
+func (c *Core) insert(ctx context.Context, w Widget) error {
+	if c.outbox == nil {
+		return c.store.Create(ctx, w)
+	}
+	// The domain emits a plain typed event; it knows nothing about the
+	// transaction's mechanics or the transport. pub records it in the same
+	// transaction as the widget write, so both commit (or roll back) together.
+	return outbox.WithinTran(ctx, c.log, c.db, c.outbox, c.reg, func(tx *sqlx.Tx, pub outbox.Publisher) error {
+		if err := c.store.WithTx(tx).Create(ctx, w); err != nil {
+			return err
+		}
+		return pub.Publish(ctx, Created{
+			ID:          w.ID.String(),
+			Name:        w.Name,
+			Description: w.Description,
+			CreatedAt:   w.CreatedAt,
+		})
+	})
 }
 
 // QueryByID returns a widget or a NotFound error.

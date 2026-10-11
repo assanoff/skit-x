@@ -6,7 +6,7 @@
 //
 // This is the application-level "parse once, read everywhere" pattern. It
 // deliberately lives in the app, not the skit
-// SDK: the exact headers (X-Tenant-ID, X-City-ID, ...) are application-specific,
+// SDK: the exact headers (X-Tenant-Id, X-City-Id, ...) are application-specific,
 // whereas the SDK packages stay generic and own their own context values
 // (auth.Principal, otel trace, i18n language) so they remain usable in isolation.
 package reqctx
@@ -22,8 +22,8 @@ import (
 
 // Request headers parsed at the edge.
 const (
-	TenantHeader = "X-Tenant-ID"
-	CityHeader   = "X-City-ID"
+	TenantHeader = "X-Tenant-Id"
+	CityHeader   = "X-City-Id"
 	// Language is resolved by i18n.RequestLang (X-Language, then Accept-Language).
 )
 

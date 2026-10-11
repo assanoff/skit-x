@@ -2,6 +2,7 @@ package user
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/assanoff/skit/errs"
@@ -17,11 +18,14 @@ type CreateUserReq struct {
 
 // Decode implements rest.Decoder.
 func (req *CreateUserReq) Decode(data []byte) error {
-	return json.Unmarshal(data, req)
+	if err := json.Unmarshal(data, req); err != nil {
+		return fmt.Errorf("decode create user: %w", err)
+	}
+	return nil
 }
 
 // Validate validates the request via its struct tags.
-func (req CreateUserReq) Validate() error {
+func (req *CreateUserReq) Validate() error {
 	return errs.Check(req)
 }
 
@@ -33,11 +37,14 @@ type UpdateUserReq struct {
 
 // Decode implements rest.Decoder.
 func (req *UpdateUserReq) Decode(data []byte) error {
-	return json.Unmarshal(data, req)
+	if err := json.Unmarshal(data, req); err != nil {
+		return fmt.Errorf("decode update user: %w", err)
+	}
+	return nil
 }
 
 // Validate validates the request via its struct tags.
-func (req UpdateUserReq) Validate() error {
+func (req *UpdateUserReq) Validate() error {
 	return errs.Check(req)
 }
 
@@ -54,8 +61,11 @@ type Response struct {
 
 // Encode implements rest.ResponseEncoder.
 func (r *Response) Encode() ([]byte, string, error) {
-	b, err := json.Marshal(r)
-	return b, "application/json", err
+	data, err := json.Marshal(r)
+	if err != nil {
+		return nil, "", fmt.Errorf("encode user: %w", err)
+	}
+	return data, "application/json", nil
 }
 
 func toResponse(u usercore.User) *Response {

@@ -14,22 +14,25 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           path: skit-x
           fetch-depth: 0
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: assanoff/skit
           path: skit
 
-      - uses: actions/setup-go@v5
+      # Newest patch of the go.mod Go version: the binaries embed the stdlib.
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: "1.26"
+          go-version-file: skit-x/go.mod
+          check-latest: true
+          cache-dependency-path: skit-x/go.sum
 
       - name: Test
         working-directory: skit-x
-        run: go test -race -short ./...
+        run: make test
 
       - name: Build versioned binaries
         working-directory: skit-x
@@ -48,7 +51,7 @@ jobs:
           ( cd dist && sha256sum skit-x_* > checksums.txt )
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           generate_release_notes: true
           files: skit-x/dist/*

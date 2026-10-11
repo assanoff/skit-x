@@ -2,6 +2,7 @@ package widget
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/assanoff/skit/errs"
@@ -19,11 +20,14 @@ type CreateWidgetReq struct {
 
 // Decode implements rest.Decoder.
 func (req *CreateWidgetReq) Decode(data []byte) error {
-	return json.Unmarshal(data, req)
+	if err := json.Unmarshal(data, req); err != nil {
+		return fmt.Errorf("decode create widget: %w", err)
+	}
+	return nil
 }
 
 // Validate validates the request via its struct tags.
-func (req CreateWidgetReq) Validate() error {
+func (req *CreateWidgetReq) Validate() error {
 	return errs.Check(req)
 }
 
@@ -36,11 +40,14 @@ type UpdateWidgetReq struct {
 
 // Decode implements rest.Decoder.
 func (req *UpdateWidgetReq) Decode(data []byte) error {
-	return json.Unmarshal(data, req)
+	if err := json.Unmarshal(data, req); err != nil {
+		return fmt.Errorf("decode update widget: %w", err)
+	}
+	return nil
 }
 
 // Validate validates the request via its struct tags.
-func (req UpdateWidgetReq) Validate() error {
+func (req *UpdateWidgetReq) Validate() error {
 	return errs.Check(req)
 }
 
@@ -53,11 +60,14 @@ type TranslateWidgetReq struct {
 
 // Decode implements rest.Decoder.
 func (req *TranslateWidgetReq) Decode(data []byte) error {
-	return json.Unmarshal(data, req)
+	if err := json.Unmarshal(data, req); err != nil {
+		return fmt.Errorf("decode translate widget: %w", err)
+	}
+	return nil
 }
 
 // Validate validates the request via its struct tags.
-func (req TranslateWidgetReq) Validate() error {
+func (req *TranslateWidgetReq) Validate() error {
 	return errs.Check(req)
 }
 
@@ -70,11 +80,14 @@ type ImportWidgetsReq struct {
 
 // Decode implements rest.Decoder.
 func (req *ImportWidgetsReq) Decode(data []byte) error {
-	return json.Unmarshal(data, req)
+	if err := json.Unmarshal(data, req); err != nil {
+		return fmt.Errorf("decode import widgets: %w", err)
+	}
+	return nil
 }
 
 // Validate validates the request (and each nested widget) via struct tags.
-func (req ImportWidgetsReq) Validate() error {
+func (req *ImportWidgetsReq) Validate() error {
 	return errs.Check(req)
 }
 
@@ -109,8 +122,11 @@ func (r *Response) GetTranslationKey() (modelName, keyID string) {
 
 // Encode implements rest.ResponseEncoder.
 func (r *Response) Encode() ([]byte, string, error) {
-	b, err := json.Marshal(r)
-	return b, "application/json", err
+	data, err := json.Marshal(r)
+	if err != nil {
+		return nil, "", fmt.Errorf("encode widget: %w", err)
+	}
+	return data, "application/json", nil
 }
 
 // ResponseList is a collection of widget responses. It implements
@@ -129,8 +145,11 @@ func (l ResponseList) Translatables() []translation.Translatable {
 
 // Encode implements rest.ResponseEncoder.
 func (l ResponseList) Encode() ([]byte, string, error) {
-	b, err := json.Marshal(l)
-	return b, "application/json", err
+	data, err := json.Marshal(l)
+	if err != nil {
+		return nil, "", fmt.Errorf("encode widget list: %w", err)
+	}
+	return data, "application/json", nil
 }
 
 // PagedResponse is a page of widget responses: it embeds the SDK's

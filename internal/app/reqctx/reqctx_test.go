@@ -20,8 +20,8 @@ func TestMiddlewareParsesHeaders(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("X-Language", "kk-KZ") // normalized to base "kk"
-	r.Header.Set("X-Tenant-ID", "acme")
-	r.Header.Set("X-City-ID", "7")
+	r.Header.Set("X-Tenant-Id", "acme")
+	r.Header.Set("X-City-Id", "7")
 
 	_ = h(r.Context(), r)
 
@@ -45,7 +45,7 @@ func TestGettersAndEmpty(t *testing.T) {
 
 	// A malformed integer header parses to 0.
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
-	r.Header.Set("X-City-ID", "not-a-number")
+	r.Header.Set("X-City-Id", "not-a-number")
 	h := reqctx.Middleware()(func(ctx context.Context, _ *http.Request) rest.ResponseEncoder {
 		if reqctx.CityID(ctx) != 0 {
 			t.Errorf("malformed CityID = %d, want 0", reqctx.CityID(ctx))

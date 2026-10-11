@@ -2,7 +2,6 @@
 
 APP         := skit-x
 GO          ?= go
-LINT        ?= golangci-lint
 BIN         := bin/$(APP)
 
 # Version is stamped into the binary (cmd.version) and used by `release`.
@@ -10,12 +9,19 @@ BIN         := bin/$(APP)
 VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS     := -X github.com/assanoff/skit-x/internal/cmd.version=$(VERSION)
 
-# Dev tool versions (override to pin).
-GOLANGCI    ?= github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-GOFUMPT     ?= mvdan.cc/gofumpt@latest
-GORELEASE   ?= golang.org/x/exp/cmd/gorelease@latest
-SWAG        ?= github.com/swaggo/swag/v2/cmd/swag@latest
-OASDIFF     ?= github.com/oasdiff/oasdiff@latest
+# Gate and CI tools are pinned and run via `go run pkg@version`, nothing to
+# install. GOLANGCI matches the golangci-lint version in .github/workflows/ci.yml.
+GOLANGCI    ?= github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
+GOVULNCHECK ?= golang.org/x/vuln/cmd/govulncheck@v1.9.0
+DEADCODE    ?= golang.org/x/tools/cmd/deadcode@v0.52.0
+GORELEASE   ?= golang.org/x/exp/cmd/gorelease@v0.0.0-20261009195045-ca0d7ba23607
+SWAG        ?= github.com/swaggo/swag/v2/cmd/swag@v2.0.0-rc6
+OASDIFF     ?= github.com/oasdiff/oasdiff@v1.33.0
+# Plain `=`, not `?=`: GNU make 3.81 (macOS) predefines LINT = lint, which `?=`
+# does not override. A local binary still works: make lint LINT=golangci-lint.
+LINT         = $(GO) run $(GOLANGCI)
+
+# Convenience tools outside any gate; latest is fine.
 TPARSE      ?= github.com/mfridman/tparse@latest
 
 # COVERDIR is the gitignored directory all coverage artifacts live in, so they
@@ -48,13 +54,21 @@ help: ## Show this help
 # ---------------------------------------------------------------------------
 # Develop
 # ---------------------------------------------------------------------------
+.PHONY: check
+check: tidy-check fix-check lint lint-rules vuln test ## Everything CI checks
+
 .PHONY: tidy
 tidy: ## go mod tidy
 	$(GO) mod tidy
 
+.PHONY: tidy-check
+tidy-check: ## go.mod and go.sum are tidy, the module cache is untampered
+	$(GO) mod tidy -diff
+	$(GO) mod verify
+
 .PHONY: fmt
-fmt: ## Format code (gofumpt)
-	@$(GO) tool gofumpt -w . 2>/dev/null || gofmt -w .
+fmt: ## Format with the .golangci.yml formatters (gofumpt, goimports)
+	$(LINT) fmt
 
 .PHONY: vet
 vet: ## go vet
@@ -63,6 +77,33 @@ vet: ## go vet
 .PHONY: lint
 lint: ## Run golangci-lint
 	$(LINT) run
+
+.PHONY: lint-rules
+lint-rules: ## Project rules: no else, one-line functions fit in 80 columns
+	@bash scripts/lint-rules.sh
+
+# `run --fix` exits non-zero while findings without an autofix remain; the
+# leading `-` lets formatting still run. Review the diff: an autofix can be
+# wrong (errorlint on a recover() value, fatcontext shadowing a variable).
+.PHONY: fix
+fix: ## Apply go fix, linter autofixes and formatting
+	$(GO) fix ./...
+	-$(LINT) run --fix
+	$(LINT) fmt
+
+.PHONY: fix-check
+fix-check: ## go fix -diff: modernizations and //go:fix inline are applied
+	$(GO) fix -diff ./...
+
+.PHONY: vuln
+vuln: ## Known vulnerabilities in reachable code
+	$(GO) run $(GOVULNCHECK) ./...
+
+# A report, not a gate: test-only helpers (WithDialect, server.Handler) and
+# accessors kept as examples (reqctx.TenantID) count as dead from main.
+.PHONY: deadcode
+deadcode: ## Report functions main never reaches
+	$(GO) run $(DEADCODE) ./...
 
 .PHONY: build
 build: ## Build the versioned binary into bin/ (COVER=1 for a coverage-instrumented build)
@@ -98,12 +139,12 @@ run-consumer: ## Run the queue consumers only, debug on :6062
 # Test
 # ---------------------------------------------------------------------------
 .PHONY: test
-test: ## Run unit tests (short, race) with per-package coverage
-	$(GO) test -race -short -cover ./...
+test: ## Run unit tests (short, race, random order) with per-package coverage
+	$(GO) test -race -short -shuffle=on -cover ./...
 
 .PHONY: test-json
 test-json: ## Unit tests with a pretty pass/fail + coverage summary (tparse)
-	@bash -o pipefail -c '$(GO) test -short -race -cover ./... -json | $(GO) run $(TPARSE) -all'
+	@bash -o pipefail -c '$(GO) test -short -race -shuffle=on -cover ./... -json | $(GO) run $(TPARSE) -all'
 
 .PHONY: cover
 cover: ## Write a unit-test coverage profile, print the total, and render the HTML
@@ -220,14 +261,9 @@ proto-tools: ## Install protobuf codegen tools (buf, protoc-gen-go, protoc-gen-g
 	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
 .PHONY: tools
-tools: proto-tools ## Install all dev tools (lint, fmt, proto, release/contract diff, swag)
-	$(GO) install $(GOLANGCI)
-	$(GO) install $(GOFUMPT)
-	$(GO) install $(GORELEASE)
-	$(GO) install $(SWAG)
-	$(GO) install $(OASDIFF)
+tools: proto-tools ## Install convenience dev tools (test output, proto)
 	$(GO) install $(TPARSE)
-	@echo "installed: golangci-lint, gofumpt, gorelease, swag, oasdiff, tparse (+ proto tools)"
+	@echo "installed: tparse (+ proto tools)"
 
 # ---------------------------------------------------------------------------
 # Release & contract tracking

@@ -1,0 +1,20 @@
+version: 2
+
+# Minor and patch updates arrive as one PR per ecosystem; major updates get
+# their own PRs, since they may need code or workflow changes.
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      gomod:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        update-types: [minor, patch]

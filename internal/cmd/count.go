@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/assanoff/skit/app"
 
@@ -30,7 +31,7 @@ func (c *CountCommand) Execute(_ []string) error {
 		func(ctx context.Context, d *deps.Deps) error {
 			var n int
 			if err := d.DB(ctx).GetContext(ctx, &n, `SELECT count(*) FROM widgets`); err != nil {
-				return err
+				return fmt.Errorf("count widgets: %w", err)
 			}
 			log.Info(ctx, "widget count", "count", n)
 			return nil

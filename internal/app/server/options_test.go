@@ -21,7 +21,9 @@ import (
 // probe stands in for Install: a route set without the business handlers and the
 // database behind them.
 func probe(_ context.Context, _ *App, r *router.Router) {
-	r.Handle("GET /probe", http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	r.Handle("GET /probe", http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		// An empty 200 is all the probe needs.
+	}))
 }
 
 // setPaths is one path per route set, enough to tell whether a server serves it.

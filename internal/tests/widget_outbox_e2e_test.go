@@ -112,23 +112,17 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	wantTraceID := prodSpan.SpanContext().TraceID()
 
 	// Wait for the consumer to record the event in the audit log.
-	deadline := time.After(20 * time.Second)
 	var (
 		gotType    string
 		gotPayload []byte
 	)
-	for {
-		err := db.QueryRowContext(ctx,
+	recorded := eventually(20*time.Second, 200*time.Millisecond, func() bool {
+		return db.QueryRowContext(ctx,
 			`SELECT type, payload FROM widget_event_log ORDER BY received_at DESC LIMIT 1`).
-			Scan(&gotType, &gotPayload)
-		if err == nil {
-			break
-		}
-		select {
-		case <-deadline:
-			t.Fatal("timed out waiting for the consumer to record widget.created")
-		case <-time.After(200 * time.Millisecond):
-		}
+			Scan(&gotType, &gotPayload) == nil
+	})
+	if !recorded {
+		t.Fatal("timed out waiting for the consumer to record widget.created")
 	}
 
 	if gotType != widget.EventWidgetCreated {
@@ -149,48 +143,29 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	// after a successful publish, which can land just after the consumer recorded
 	// the audit row above, so poll rather than read once.
 	var status string
-	statusDeadline := time.After(10 * time.Second)
-	for {
+	sent := eventually(10*time.Second, 200*time.Millisecond, func() bool {
 		if err := db.GetContext(ctx, &status,
 			`SELECT status FROM outbox_events WHERE type = $1 ORDER BY created_at DESC LIMIT 1`,
 			widget.EventWidgetCreated); err != nil {
 			t.Fatalf("query outbox status: %v", err)
 		}
-		if status == outbox.StatusSent {
-			break
-		}
-		select {
-		case <-statusDeadline:
-			t.Errorf("outbox status = %q, want sent", status)
-		case <-time.After(200 * time.Millisecond):
-			continue
-		}
-		break
+		return status == outbox.StatusSent
+	})
+	if !sent {
+		t.Errorf("outbox status = %q, want sent", status)
 	}
 
 	// Trace continuation: the consumer should have opened a span that is a child
 	// of the producer span (same trace id, parent = producer), proving the trace
 	// flowed producer -> outbox -> broker -> consumer. The span ends in Handle's
 	// defer, which may land just after the audit row commits, so poll for it.
-	findSpan := func(name string) sdktrace.ReadOnlySpan {
-		for _, s := range spans.Ended() {
-			if s.Name() == name {
-				return s
-			}
-		}
-		return nil
-	}
 	var consumerSpan sdktrace.ReadOnlySpan
-	spanDeadline := time.After(10 * time.Second)
-	for consumerSpan == nil {
-		if consumerSpan = findSpan("widgetaudit.record"); consumerSpan != nil {
-			break
-		}
-		select {
-		case <-spanDeadline:
-			t.Fatal("timed out waiting for the consumer span")
-		case <-time.After(100 * time.Millisecond):
-		}
+	found := eventually(10*time.Second, 100*time.Millisecond, func() bool {
+		consumerSpan = endedSpan(spans, "widgetaudit.record")
+		return consumerSpan != nil
+	})
+	if !found {
+		t.Fatal("timed out waiting for the consumer span")
 	}
 	if got := consumerSpan.SpanContext().TraceID(); got != wantTraceID {
 		t.Errorf("consumer span trace id = %s, want %s (trace not continued)", got, wantTraceID)
@@ -198,6 +173,30 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	if got := consumerSpan.Parent().SpanID(); got != prodSpan.SpanContext().SpanID() {
 		t.Errorf("consumer span parent = %s, want producer span %s", got, prodSpan.SpanContext().SpanID())
 	}
+}
+
+// eventually polls cond every interval until it holds or timeout elapses, and
+// reports whether it held.
+func eventually(timeout, interval time.Duration, cond func() bool) bool {
+	deadline := time.After(timeout)
+	for !cond() {
+		select {
+		case <-deadline:
+			return false
+		case <-time.After(interval):
+		}
+	}
+	return true
+}
+
+// endedSpan returns the first ended span recorded under name, or nil.
+func endedSpan(spans *tracetest.SpanRecorder, name string) sdktrace.ReadOnlySpan {
+	for _, s := range spans.Ended() {
+		if s.Name() == name {
+			return s
+		}
+	}
+	return nil
 }
 
 // startRabbitMQ launches a RabbitMQ container and returns its AMQP URL.

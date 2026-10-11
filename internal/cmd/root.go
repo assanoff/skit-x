@@ -34,14 +34,15 @@ type Opts struct {
 	Version  VersionCommand  `command:"version" description:"print the build version"`
 }
 
-// Execute loads .env, parses flags/env, and runs the selected subcommand.
+// Execute loads .env, parses flags/env, runs the selected subcommand and returns
+// the process exit code.
 //
 // The .env file is optional: every option has a default and configuration also
 // comes from the process environment (in production, from the orchestrator). A
 // missing file is not an error — startup proceeds on defaults — but we warn so
 // the absence is visible. The app logger is not built yet here (it needs the
 // parsed config), so the warning goes through slog's default handler.
-func Execute() {
+func Execute() int {
 	var opts Opts
 
 	const envFile = ".env"
@@ -51,11 +52,12 @@ func Execute() {
 
 	if err := skconfig.Parse(&opts, envFile); err != nil {
 		if skconfig.IsHelp(err) {
-			os.Exit(0)
+			return 0
 		}
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
 func buildLogger(cfg config.ServerOpts) *logger.Logger {
