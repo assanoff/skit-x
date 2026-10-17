@@ -9,6 +9,7 @@ package server
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -20,7 +21,6 @@ import (
 	"github.com/assanoff/skit/grpcserver"
 	"github.com/assanoff/skit/health"
 	"github.com/assanoff/skit/httpserver"
-	"github.com/assanoff/skit/logger"
 	"github.com/assanoff/skit/metrics"
 	"github.com/assanoff/skit/outbox"
 	"github.com/assanoff/skit/rest"
@@ -36,7 +36,7 @@ import (
 // is a worker.Runnable; Runnables hands them all to app.Run.
 type App struct {
 	opts config.ServerOpts
-	log  *logger.Logger
+	log  *slog.Logger
 	d    *deps.Deps
 	m    *metrics.Metrics
 
@@ -59,7 +59,7 @@ type listener interface {
 // New builds the application a command asked for: the dependency container,
 // then the options it lists (see options.go), in that order. Without options
 // it builds the container only. Nothing starts here — app.Run does that.
-func New(ctx context.Context, opts config.ServerOpts, log *logger.Logger, options ...Option) (*App, error) {
+func New(ctx context.Context, opts config.ServerOpts, log *slog.Logger, options ...Option) (*App, error) {
 	d, err := initDeps(opts, log)
 	if err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ func New(ctx context.Context, opts config.ServerOpts, log *logger.Logger, option
 	return a, nil
 }
 
-func newApp(opts config.ServerOpts, log *logger.Logger, d *deps.Deps) *App {
+func newApp(opts config.ServerOpts, log *slog.Logger, d *deps.Deps) *App {
 	return &App{opts: opts, log: log, d: d, m: metrics.New("skit")}
 }
 
@@ -193,7 +193,7 @@ func buildGateway(ctx context.Context, a *App, addr, grpcAddr string) (*httpserv
 		Name:            "gateway-server",
 		Addr:            addr,
 		ShutdownTimeout: a.opts.GRPC.ShutdownTimeout,
-		Logger:          a.log.Slog(),
+		Logger:          a.log,
 	}, gw), nil
 }
 
@@ -218,7 +218,7 @@ func readiness(d *deps.Deps) http.Handler {
 // Handler builds the technical and the business routes on one router — the
 // Debug and Install route sets, assembled by the same code as WithServer.
 // Exported so integration tests can drive the HTTP stack via httptest.
-func Handler(ctx context.Context, opts config.ServerOpts, log *logger.Logger) (http.Handler, error) {
+func Handler(ctx context.Context, opts config.ServerOpts, log *slog.Logger) (http.Handler, error) {
 	d, err := initDeps(opts, log)
 	if err != nil {
 		return nil, err
@@ -228,7 +228,7 @@ func Handler(ctx context.Context, opts config.ServerOpts, log *logger.Logger) (h
 
 // GRPCServer builds the gRPC server with the widget service registered.
 // Exported so integration tests can serve it on a bufconn or local listener.
-func GRPCServer(ctx context.Context, opts config.ServerOpts, log *logger.Logger) (*grpcserver.Server, error) {
+func GRPCServer(ctx context.Context, opts config.ServerOpts, log *slog.Logger) (*grpcserver.Server, error) {
 	d, err := initDeps(opts, log)
 	if err != nil {
 		return nil, err
@@ -238,7 +238,7 @@ func GRPCServer(ctx context.Context, opts config.ServerOpts, log *logger.Logger)
 
 // initDeps builds the Deps container and runs the initializers (registering
 // cleanups with the global closer).
-func initDeps(opts config.ServerOpts, log *logger.Logger) (*deps.Deps, error) {
+func initDeps(opts config.ServerOpts, log *slog.Logger) (*deps.Deps, error) {
 	d := &deps.Deps{Opts: opts, Logger: log}
 	if err := app.InitDeps(d, deps.Initializers); err != nil {
 		return nil, err

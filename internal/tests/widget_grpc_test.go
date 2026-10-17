@@ -2,7 +2,7 @@ package tests
 
 import (
 	"context"
-	"io"
+	"log/slog"
 	"net"
 	"testing"
 	"uuid"
@@ -12,8 +12,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
-
-	"github.com/assanoff/skit/logger"
 
 	widgetv1 "github.com/assanoff/skit-x/gen/widget/v1"
 	"github.com/assanoff/skit-x/internal/app/server"
@@ -27,7 +25,7 @@ func TestWidgetGRPC(t *testing.T) {
 	ctx := context.Background()
 	cfg := startPostgres(ctx, t)
 
-	log := logger.New(io.Discard, logger.Config{Service: "test", Level: logger.LevelError})
+	log := slog.New(slog.DiscardHandler)
 
 	gs, err := server.GRPCServer(ctx, cfg, log)
 	if err != nil {

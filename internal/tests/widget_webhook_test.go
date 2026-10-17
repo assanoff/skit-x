@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/assanoff/skit/eventbus"
 	"github.com/assanoff/skit/httpmw"
-	"github.com/assanoff/skit/logger"
 	"github.com/assanoff/skit/retry"
 
 	"github.com/assanoff/skit-x/core/widget"
@@ -35,7 +35,7 @@ func TestWidgetWebhookHTTPMW(t *testing.T) {
 	ctx := context.Background()
 	cfg := startPostgres(ctx, t)
 	db := openTestDB(t, cfg)
-	log := logger.New(io.Discard, logger.Config{Service: "test", Level: logger.LevelError})
+	log := slog.New(slog.DiscardHandler)
 
 	// Flaky webhook: first call returns 503, subsequent calls 200. Records the
 	// payload from the successful call.

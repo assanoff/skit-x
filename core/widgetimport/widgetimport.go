@@ -16,10 +16,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 	"uuid"
 
-	"github.com/assanoff/skit/logger"
 	"github.com/assanoff/skit/queue"
 	"github.com/assanoff/skit/worker"
 
@@ -42,13 +42,13 @@ type Store interface {
 
 // Importer enqueues and processes widget-import batches.
 type Importer struct {
-	log   *logger.Logger
+	log   *slog.Logger
 	q     queue.Queue
 	store Store
 }
 
 // New builds an Importer over the given durable queue and store.
-func New(log *logger.Logger, q queue.Queue, store Store) *Importer {
+func New(log *slog.Logger, q queue.Queue, store Store) *Importer {
 	return &Importer{log: log, q: q, store: store}
 }
 
@@ -109,7 +109,7 @@ func (im *Importer) NewLoop(cfg Config) *worker.Loop {
 	}
 
 	proc := worker.NewProcessor[queue.Task](
-		im.log.Slog(),
+		im.log,
 		im.q, // Source: Claim
 		worker.HandlerFunc[queue.Task](im.Handle),
 		im.q, // Sink: MarkDone/MarkFailed
@@ -121,7 +121,7 @@ func (im *Importer) NewLoop(cfg Config) *worker.Loop {
 			},
 		},
 	)
-	return worker.NewLoop(im.log.Slog(), worker.LoopConfig{
+	return worker.NewLoop(im.log, worker.LoopConfig{
 		Name:               Kind,
 		Interval:           cfg.Interval,
 		ImmediateFirstTick: true,

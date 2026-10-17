@@ -63,7 +63,7 @@ var initWidgetCount = func(c *Deps) (dim.CleanupFunc, error) {
 		countAll := func(ctx context.Context) (int, error) {
 			return core.Count(ctx, widget.QueryFilter{})
 		}
-		return poller.New(c.Logger.Slog(), 0, countAll, poller.Config{
+		return poller.New(c.Logger, 0, countAll, poller.Config{
 			Name:        "widget-count",
 			Interval:    c.Opts.Worker.CountInterval,
 			PollTimeout: 5 * time.Second,

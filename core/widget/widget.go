@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"time"
 	"uuid"
 
@@ -18,7 +19,6 @@ import (
 	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/errs"
 	"github.com/assanoff/skit/eventbus"
-	"github.com/assanoff/skit/logger"
 	"github.com/assanoff/skit/order"
 	"github.com/assanoff/skit/outbox"
 	"github.com/assanoff/skit/page"
@@ -41,7 +41,7 @@ type Store interface {
 
 // Core implements the widget business logic.
 type Core struct {
-	log   *logger.Logger
+	log   *slog.Logger
 	store Store
 
 	// Optional transactional-outbox wiring. When set, Create persists the widget
@@ -83,7 +83,7 @@ func WithEventBus(bus *eventbus.Bus) Option {
 }
 
 // NewCore constructs a Core.
-func NewCore(log *logger.Logger, store Store, opts ...Option) *Core {
+func NewCore(log *slog.Logger, store Store, opts ...Option) *Core {
 	c := &Core{log: log, store: store}
 	for _, opt := range opts {
 		opt(c)

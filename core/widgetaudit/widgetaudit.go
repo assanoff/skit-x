@@ -7,6 +7,7 @@ package widgetaudit
 
 import (
 	"context"
+	"log/slog"
 	"uuid"
 
 	"github.com/jmoiron/sqlx"
@@ -15,13 +16,12 @@ import (
 
 	"github.com/assanoff/skit/broker"
 	"github.com/assanoff/skit/dbx"
-	"github.com/assanoff/skit/logger"
 	"github.com/assanoff/skit/otel"
 )
 
 // Recorder persists received events to the audit log.
 type Recorder struct {
-	log    *logger.Logger
+	log    *slog.Logger
 	db     *sqlx.DB
 	tracer trace.Tracer
 }
@@ -29,7 +29,7 @@ type Recorder struct {
 // New builds a Recorder. tracer is used to continue the producer's trace from
 // the event's headers; pass the application tracer (a no-op tracer is fine when
 // tracing is disabled).
-func New(log *logger.Logger, db *sqlx.DB, tracer trace.Tracer) *Recorder {
+func New(log *slog.Logger, db *sqlx.DB, tracer trace.Tracer) *Recorder {
 	return &Recorder{log: log, db: db, tracer: tracer}
 }
 
@@ -56,7 +56,7 @@ func (r *Recorder) Handle(ctx context.Context, m broker.Message) broker.Action {
 	id, err := uuid.Parse(m.ID)
 	if err != nil {
 		span.RecordError(err)
-		r.log.Warn(ctx, "widgetaudit: bad event id, dropping", "id", m.ID, "err", err)
+		r.log.WarnContext(ctx, "widgetaudit: bad event id, dropping", "id", m.ID, "err", err)
 		return broker.Discard
 	}
 
@@ -73,9 +73,9 @@ func (r *Recorder) Handle(ctx context.Context, m broker.Message) broker.Action {
 
 	if err := dbx.NamedExecContext(ctx, r.log, r.db, q, arg); err != nil {
 		span.RecordError(err)
-		r.log.Error(ctx, "widgetaudit: record failed, requeueing", "event_id", id, "err", err)
+		r.log.ErrorContext(ctx, "widgetaudit: record failed, requeueing", "event_id", id, "err", err)
 		return broker.Requeue
 	}
-	r.log.Info(ctx, "widgetaudit: recorded event", "event_id", id, "type", m.Type)
+	r.log.InfoContext(ctx, "widgetaudit: recorded event", "event_id", id, "type", m.Type)
 	return broker.Ack
 }

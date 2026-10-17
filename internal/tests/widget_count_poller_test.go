@@ -2,11 +2,10 @@ package tests
 
 import (
 	"context"
-	"io"
+	"log/slog"
 	"testing"
 	"time"
 
-	"github.com/assanoff/skit/logger"
 	"github.com/assanoff/skit/poller"
 
 	"github.com/assanoff/skit-x/core/widget"
@@ -24,7 +23,7 @@ func TestWidgetCountPoller(t *testing.T) {
 	ctx := context.Background()
 	cfg := startPostgres(ctx, t)
 	db := openTestDB(t, cfg)
-	log := logger.New(io.Discard, logger.Config{Service: "test", Level: logger.LevelError})
+	log := slog.New(slog.DiscardHandler)
 
 	store := widgetdb.NewStore(log, db)
 	core := widget.NewCore(log, store)
@@ -34,7 +33,7 @@ func TestWidgetCountPoller(t *testing.T) {
 	countAll := func(ctx context.Context) (int, error) {
 		return core.Count(ctx, widget.QueryFilter{})
 	}
-	p := poller.New(log.Slog(), 0, countAll, poller.Config{
+	p := poller.New(log, 0, countAll, poller.Config{
 		Name:        "widget-count-test",
 		Interval:    100 * time.Millisecond,
 		PollTimeout: 2 * time.Second,

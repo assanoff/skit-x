@@ -3,13 +3,12 @@ package tests
 import (
 	"context"
 	"fmt"
-	"io"
+	"log/slog"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/assanoff/skit/dbx"
-	"github.com/assanoff/skit/logger"
 	"github.com/assanoff/skit/page"
 	"github.com/assanoff/skit/queue"
 	"github.com/assanoff/skit/worker"
@@ -92,7 +91,7 @@ func TestWidgetImportQueue(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 
-	log := logger.New(io.Discard, logger.Config{Service: "test", Level: logger.LevelError})
+	log := slog.New(slog.DiscardHandler)
 	store := widgetdb.NewStore(log, db)
 	q := queue.NewPG(log, db, queue.Options{})
 	im := widgetimport.New(log, q, store)
@@ -112,7 +111,7 @@ func TestWidgetImportQueue(t *testing.T) {
 	// Two concurrent processors over the same queue (small batch size so they
 	// genuinely interleave). Supervised by a worker.Group.
 	runCtx, cancel := context.WithCancel(ctx)
-	group := worker.NewGroup(log.Slog(), 2*time.Second)
+	group := worker.NewGroup(log, 2*time.Second)
 	group.Add(im.NewLoop(widgetimport.Config{Interval: 50 * time.Millisecond, BatchSize: 3}))
 	group.Add(im.NewLoop(widgetimport.Config{Interval: 50 * time.Millisecond, BatchSize: 3}))
 

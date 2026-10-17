@@ -3,7 +3,7 @@ package tests
 import (
 	"context"
 	"errors"
-	"io"
+	"log/slog"
 	"testing"
 	"time"
 	"uuid"
@@ -12,7 +12,6 @@ import (
 
 	auditdb "github.com/assanoff/skit/auditlog/db"
 	"github.com/assanoff/skit/dbx"
-	"github.com/assanoff/skit/logger"
 	"github.com/assanoff/skit/outbox"
 	"github.com/assanoff/skit/queue"
 	"github.com/assanoff/skit/retry"
@@ -32,7 +31,7 @@ func TestOutboxStoreFSM(t *testing.T) {
 	ctx := context.Background()
 	cfg := startPostgres(ctx, t)
 	db := openTestDB(t, cfg)
-	log := logger.New(io.Discard, logger.Config{Service: "test", Level: logger.LevelError})
+	log := slog.New(slog.DiscardHandler)
 
 	// Near-zero backoff so a retryable failure is immediately re-leasable.
 	store := outbox.NewPG(log, db, outbox.Options{
@@ -243,7 +242,7 @@ func statusOf(t *testing.T, db *sqlx.DB, id uuid.UUID) string {
 // duplicate calls across tests (and against the deps providers) are harmless.
 func ensureSDKSchemas(ctx context.Context, t *testing.T, cfg config.ServerOpts) {
 	t.Helper()
-	log := logger.New(io.Discard, logger.Config{Service: "test", Level: logger.LevelError})
+	log := slog.New(slog.DiscardHandler)
 	db := openTestDB(t, cfg)
 	must := func(name string, err error) {
 		if err != nil {

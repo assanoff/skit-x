@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 	"uuid"
@@ -16,7 +17,6 @@ import (
 
 	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/dbx/dialect"
-	"github.com/assanoff/skit/logger"
 	"github.com/assanoff/skit/order"
 	"github.com/assanoff/skit/page"
 
@@ -25,7 +25,7 @@ import (
 
 // Store implements user.Store against Postgres.
 type Store struct {
-	log     *logger.Logger
+	log     *slog.Logger
 	db      *sqlx.DB
 	dialect dialect.Dialect
 }
@@ -42,7 +42,7 @@ func WithDialect(d dialect.Dialect) Option {
 }
 
 // NewStore builds a Store over the connection pool.
-func NewStore(log *logger.Logger, db *sqlx.DB, opts ...Option) *Store {
+func NewStore(log *slog.Logger, db *sqlx.DB, opts ...Option) *Store {
 	s := &Store{log: log, db: db, dialect: dialect.Postgres{}}
 	for _, o := range opts {
 		o(s)

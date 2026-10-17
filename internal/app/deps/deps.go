@@ -5,6 +5,8 @@
 package deps
 
 import (
+	"log/slog"
+
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel/trace"
 
@@ -16,7 +18,6 @@ import (
 	"github.com/assanoff/skit/dim"
 	"github.com/assanoff/skit/eventbus"
 	"github.com/assanoff/skit/i18n"
-	"github.com/assanoff/skit/logger"
 	"github.com/assanoff/skit/outbox"
 	"github.com/assanoff/skit/poller"
 	"github.com/assanoff/skit/queue"
@@ -36,7 +37,7 @@ import (
 // Deps holds application dependencies as lazy providers.
 type Deps struct {
 	Opts   config.ServerOpts
-	Logger *logger.Logger
+	Logger *slog.Logger
 
 	Tracer      dim.Provider[trace.Tracer]
 	DB          dim.Provider[*sqlx.DB]

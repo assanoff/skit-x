@@ -3,7 +3,6 @@ package tests
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -13,8 +12,6 @@ import (
 	"time"
 
 	"github.com/matryer/is"
-
-	"github.com/assanoff/skit/logger"
 
 	"github.com/assanoff/skit-x/internal/app/server"
 )
@@ -81,8 +78,8 @@ func TestGroupVsRouteAuth(t *testing.T) {
 	cfg.Auth.RequiredRole = "admin"
 	cfg.HTTP.RequestTimeout = 10 * time.Second
 
-	log := logger.New(io.Discard, logger.Config{Service: "test", Level: logger.LevelError})
-	slog.SetDefault(log.Slog())
+	log := slog.New(slog.DiscardHandler)
+	slog.SetDefault(log)
 	handler, err := server.Handler(ctx, cfg, log)
 	is.NoErr(err) // build handler
 	srv := httptest.NewServer(handler)

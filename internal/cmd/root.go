@@ -12,7 +12,6 @@ import (
 
 	skconfig "github.com/assanoff/skit/config"
 	"github.com/assanoff/skit/logger"
-	skotel "github.com/assanoff/skit/otel"
 
 	"github.com/assanoff/skit-x/internal/app/config"
 )
@@ -47,6 +46,7 @@ func Execute() int {
 
 	const envFile = ".env"
 	if _, err := os.Stat(envFile); errors.Is(err, os.ErrNotExist) {
+		//nolint:sloglint // the app logger needs the parsed config and does not exist yet
 		slog.Warn("no .env file found; starting on defaults and process environment", "file", envFile)
 	}
 
@@ -60,16 +60,16 @@ func Execute() int {
 	return 0
 }
 
-func buildLogger(cfg config.ServerOpts) *logger.Logger {
+func buildLogger(cfg config.ServerOpts) *slog.Logger {
 	log := logger.New(os.Stdout, logger.Config{
 		Service:   cfg.Service,
+		Version:   version,
 		Level:     parseLevel(cfg.LogLevel),
 		AddSource: true,
-		TraceIDFn: skotel.GetTraceID,
 	})
 	// Route the global slog (used by dim/closer for init/shutdown logs) through
 	// the same handler.
-	slog.SetDefault(log.Slog())
+	slog.SetDefault(log)
 	return log
 }
 

@@ -33,7 +33,7 @@ func (c *CountCommand) Execute(_ []string) error {
 			if err := d.DB(ctx).GetContext(ctx, &n, `SELECT count(*) FROM widgets`); err != nil {
 				return fmt.Errorf("count widgets: %w", err)
 			}
-			log.Info(ctx, "widget count", "count", n)
+			log.InfoContext(ctx, "widget count", "count", n)
 			return nil
 		})
 }

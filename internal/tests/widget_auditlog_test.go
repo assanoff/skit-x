@@ -2,14 +2,13 @@ package tests
 
 import (
 	"context"
-	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/assanoff/skit/auditlog"
 	auditdb "github.com/assanoff/skit/auditlog/db"
-	"github.com/assanoff/skit/logger"
 
 	"github.com/assanoff/skit-x/core/widget"
 )
@@ -27,7 +26,7 @@ func TestWidgetAuditLog(t *testing.T) {
 	ctx := context.Background()
 	srv, cfg := newTestServer(ctx, t)
 	db := openTestDB(t, cfg)
-	log := logger.New(io.Discard, logger.Config{Service: "test", Level: logger.LevelError})
+	log := slog.New(slog.DiscardHandler)
 	auditCore := auditlog.NewCore(log, auditdb.NewStore(log, db))
 
 	// Create -> audit version 1.

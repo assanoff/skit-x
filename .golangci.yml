@@ -68,6 +68,7 @@ linters:
     - perfsprint
     - protogetter
     - revive
+    - sloglint
     - unconvert
     - usestdlibvars
     - usetesting
@@ -153,6 +154,9 @@ linters:
         - name: unnecessary-stmt
         - name: use-any
         - name: waitgroup-by-value
+    sloglint:
+      context: all   # the ctx carries the span the record is correlated with
+      no-global: all # log through the injected *slog.Logger
     staticcheck:
       checks: [all]
     wrapcheck:

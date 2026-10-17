@@ -3,7 +3,7 @@ package tests
 import (
 	"context"
 	"encoding/json"
-	"io"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -14,7 +14,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	"github.com/assanoff/skit/broker/rabbitmq"
-	"github.com/assanoff/skit/logger"
 	"github.com/assanoff/skit/outbox"
 	"github.com/assanoff/skit/worker"
 
@@ -41,7 +40,7 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	ctx := context.Background()
 	cfg := startPostgres(ctx, t)
 	db := openTestDB(t, cfg)
-	log := logger.New(io.Discard, logger.Config{Service: "test", Level: logger.LevelError})
+	log := slog.New(slog.DiscardHandler)
 
 	// Tracing: a W3C propagator plus an in-memory span recorder so we can assert
 	// the consumer continues the producer's trace through the outbox/broker.
@@ -90,7 +89,7 @@ func TestWidgetOutboxE2E(t *testing.T) {
 
 	// Supervise the consumer and relay together.
 	runCtx, cancel := context.WithCancel(ctx)
-	group := worker.NewGroup(log.Slog(), 3*time.Second)
+	group := worker.NewGroup(log, 3*time.Second)
 	group.Add(consumer)
 	group.Add(relay)
 	groupDone := make(chan error, 1)

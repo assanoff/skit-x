@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/assanoff/skit/httpserver"
-	"github.com/assanoff/skit/logger"
 	"github.com/assanoff/skit/rest/router"
 
 	"github.com/assanoff/skit-x/internal/app/config"
@@ -133,7 +132,7 @@ func TestDebugComponents(t *testing.T) {
 func newTestApp(t *testing.T, options ...Option) *App {
 	t.Helper()
 
-	log := logger.New(io.Discard, logger.Config{Service: "test", Level: logger.LevelError})
+	log := slog.New(slog.DiscardHandler)
 	opts := config.ServerOpts{Service: "test"}
 	a := newApp(opts, log, &deps.Deps{Opts: opts, Logger: log})
 	for _, add := range options {

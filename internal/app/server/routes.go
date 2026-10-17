@@ -55,7 +55,7 @@ func Install(ctx context.Context, a *App, r *router.Router) {
 		// RecoverPanics turns a panic below the logger into a 500 with the
 		// panic as its error, so the access log and the server span record it;
 		// the root recoverer (see handler) only sees what escapes this chain.
-		httplog.Middleware(d.Logger.Named("access"), &httplog.Options{
+		httplog.RequestLogger(d.Logger.With("logger", "access"), &httplog.Options{
 			Level:         slog.LevelInfo,
 			Schema:        httplog.SchemaOTEL.Concise(true),
 			RecoverPanics: true,

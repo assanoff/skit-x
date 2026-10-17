@@ -7,12 +7,12 @@ package product
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"time"
 	"uuid"
 
 	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/errs"
-	"github.com/assanoff/skit/logger"
 	"github.com/assanoff/skit/order"
 	"github.com/assanoff/skit/page"
 )
@@ -30,12 +30,12 @@ type Store interface {
 
 // Core implements the product business logic.
 type Core struct {
-	log   *logger.Logger
+	log   *slog.Logger
 	store Store
 }
 
 // NewCore constructs a Core.
-func NewCore(log *logger.Logger, store Store) *Core {
+func NewCore(log *slog.Logger, store Store) *Core {
 	return &Core{log: log, store: store}
 }
 

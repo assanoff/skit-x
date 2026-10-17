@@ -2,7 +2,6 @@ package tests
 
 import (
 	"context"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -12,8 +11,6 @@ import (
 	"uuid"
 
 	jwt "github.com/golang-jwt/jwt/v5"
-
-	"github.com/assanoff/skit/logger"
 
 	"github.com/assanoff/skit-x/internal/app/server"
 )
@@ -65,8 +62,8 @@ func TestWidgetAuth(t *testing.T) {
 	cfg.Auth.RequiredRole = "widget:write"
 	cfg.HTTP.RequestTimeout = 10 * time.Second
 
-	log := logger.New(io.Discard, logger.Config{Service: "test", Level: logger.LevelError})
-	slog.SetDefault(log.Slog())
+	log := slog.New(slog.DiscardHandler)
+	slog.SetDefault(log)
 	handler, err := server.Handler(ctx, cfg, log)
 	if err != nil {
 		t.Fatalf("build handler: %v", err)

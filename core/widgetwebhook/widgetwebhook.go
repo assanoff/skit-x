@@ -15,10 +15,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/assanoff/skit/eventbus"
-	"github.com/assanoff/skit/logger"
 
 	"github.com/assanoff/skit-x/core/widget"
 )
@@ -26,14 +26,14 @@ import (
 // Notifier POSTs widget.created events to a webhook URL using a (typically
 // retrying) HTTP client.
 type Notifier struct {
-	log    *logger.Logger
+	log    *slog.Logger
 	client *http.Client
 	url    string
 }
 
 // New builds a Notifier. client should carry the resilient transport (e.g.
 // httpmw.NewRetryTransport) and any per-request timeout.
-func New(log *logger.Logger, client *http.Client, url string) *Notifier {
+func New(log *slog.Logger, client *http.Client, url string) *Notifier {
 	return &Notifier{log: log, client: client, url: url}
 }
 
@@ -71,6 +71,6 @@ func (n *Notifier) handle(ctx context.Context, d eventbus.Data) error {
 		return fmt.Errorf("widgetwebhook: %s returned %d", n.url, resp.StatusCode)
 	}
 
-	n.log.Info(ctx, "widget.created delivered to webhook", "id", ev.ID, "url", n.url)
+	n.log.InfoContext(ctx, "widget.created delivered to webhook", "id", ev.ID, "url", n.url)
 	return nil
 }

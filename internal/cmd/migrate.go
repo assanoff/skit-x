@@ -66,7 +66,7 @@ func (c *MigrateCommand) Execute(args []string) error {
 	}
 	defer func() { _ = m.Close() }()
 
-	log.Info(ctx, "running migrations", "direction", direction)
+	log.InfoContext(ctx, "running migrations", "direction", direction)
 	switch direction {
 	case "up":
 		return m.Up(ctx)
@@ -82,7 +82,7 @@ func (c *MigrateCommand) Execute(args []string) error {
 			if s.Applied {
 				state = "applied"
 			}
-			log.Info(ctx, "migration", "version", s.Version, "state", state, "source", s.Source)
+			log.InfoContext(ctx, "migration", "version", s.Version, "state", state, "source", s.Source)
 		}
 		return nil
 	default:

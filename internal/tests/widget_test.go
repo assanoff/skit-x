@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/assanoff/skit/dbtest"
-	"github.com/assanoff/skit/logger"
 
 	"github.com/assanoff/skit-x/internal/app/config"
 	"github.com/assanoff/skit-x/internal/app/server"
@@ -104,8 +103,8 @@ func newTestServer(ctx context.Context, t *testing.T) (*httptest.Server, config.
 	t.Helper()
 	cfg := startPostgres(ctx, t)
 
-	log := logger.New(io.Discard, logger.Config{Service: "test", Level: logger.LevelError})
-	slog.SetDefault(log.Slog()) // quiet dim/closer init logs
+	log := slog.New(slog.DiscardHandler)
+	slog.SetDefault(log) // quiet dim/closer init logs
 
 	handler, err := server.Handler(ctx, cfg, log)
 	if err != nil {
