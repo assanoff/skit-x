@@ -22,6 +22,7 @@ import (
 	"github.com/assanoff/skit/health"
 	"github.com/assanoff/skit/httpserver"
 	"github.com/assanoff/skit/metrics"
+	"github.com/assanoff/skit/middleware"
 	"github.com/assanoff/skit/outbox"
 	"github.com/assanoff/skit/rest"
 	"github.com/assanoff/skit/worker"
@@ -185,18 +186,22 @@ func buildGateway(ctx context.Context, a *App, addr, grpcAddr string) (*httpserv
 	// grpcgateway.HandlerRegistrar seam (widgetgrpc.Handler.RegisterGateway), so
 	// this orchestrator does not import the generated widgetv1 package.
 	gw, err := grpcgateway.New(ctx, grpcgateway.Config{
-		Endpoint: dialTarget(grpcAddr),
+		Endpoint:       dialTarget(grpcAddr),
+		TracerProvider: a.d.TracerProvider,
 	}, a.d.WidgetGRPC(ctx).RegisterGateway)
 	if err != nil {
 		return nil, err
 	}
 	closer.Add(gw.Close)
+	// Trace opens the server span of every gateway request; the gateway names
+	// it after the route it matched.
+	traced := middleware.Trace(middleware.TraceConfig{TracerProvider: a.d.TracerProvider})(gw)
 	return httpserver.New(httpserver.Config{
 		Name:            "gateway-server",
 		Addr:            addr,
 		ShutdownTimeout: a.opts.GRPC.ShutdownTimeout,
 		Logger:          a.log,
-	}, gw), nil
+	}, traced), nil
 }
 
 // dialTarget makes a listen address dialable: ":9090" -> "localhost:9090".
