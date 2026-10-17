@@ -6,18 +6,29 @@
 package widgetaudit
 
 import (
+	"cmp"
 	"context"
 	"log/slog"
 	"uuid"
 
 	"github.com/jmoiron/sqlx"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/assanoff/skit/broker"
 	"github.com/assanoff/skit/dbx"
-	"github.com/assanoff/skit/otel"
+	skotel "github.com/assanoff/skit/otel"
 )
+
+// scope names the tracer of this package.
+const scope = "github.com/assanoff/skit-x/core/widgetaudit"
+
+// Config configures a Recorder.
+type Config struct {
+	// TracerProvider records the span of each event; nil → the global provider.
+	TracerProvider trace.TracerProvider
+}
 
 // Recorder persists received events to the audit log.
 type Recorder struct {
@@ -26,11 +37,10 @@ type Recorder struct {
 	tracer trace.Tracer
 }
 
-// New builds a Recorder. tracer is used to continue the producer's trace from
-// the event's headers; pass the application tracer (a no-op tracer is fine when
-// tracing is disabled).
-func New(log *slog.Logger, db *sqlx.DB, tracer trace.Tracer) *Recorder {
-	return &Recorder{log: log, db: db, tracer: tracer}
+// New builds a Recorder.
+func New(log *slog.Logger, db *sqlx.DB, cfg Config) *Recorder {
+	tp := cmp.Or(cfg.TracerProvider, otel.GetTracerProvider())
+	return &Recorder{log: log, db: db, tracer: tp.Tracer(scope)}
 }
 
 // Handle implements broker.Handler: it writes one audit row per event. A
@@ -43,19 +53,20 @@ func New(log *slog.Logger, db *sqlx.DB, tracer trace.Tracer) *Recorder {
 // the widget and recording the audit row appear as ONE end-to-end trace, and the
 // consumer's logs carry the same trace_id as the producer's.
 func (r *Recorder) Handle(ctx context.Context, m broker.Message) broker.Action {
-	ctx = otel.ExtractFromCarrier(ctx, m.Headers) // restore the producer's span context
-	ctx = otel.InjectTracing(ctx, r.tracer)       // make the tracer + trace_id available
-	ctx, span := otel.AddSpan(
-		ctx, "widgetaudit.record",
-		attribute.String("messaging.system", "rabbitmq"),
-		attribute.String("event.type", m.Type),
-		attribute.String("event.id", m.ID),
+	ctx = skotel.ExtractFromCarrier(ctx, m.Headers) // restore the producer's span context
+	ctx, span := r.tracer.Start(ctx, "widgetaudit.record",
+		trace.WithSpanKind(trace.SpanKindConsumer),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "rabbitmq"),
+			attribute.String("event.type", m.Type),
+			attribute.String("event.id", m.ID),
+		),
 	)
 	defer span.End()
 
 	id, err := uuid.Parse(m.ID)
 	if err != nil {
-		span.RecordError(err)
+		skotel.SetError(span, err)
 		r.log.WarnContext(ctx, "widgetaudit: bad event id, dropping", "id", m.ID, "err", err)
 		return broker.Discard
 	}
@@ -72,7 +83,7 @@ func (r *Recorder) Handle(ctx context.Context, m broker.Message) broker.Action {
 	}{EventID: dbx.UUID(id), Type: m.Type, Payload: m.Data}
 
 	if err := dbx.NamedExecContext(ctx, r.log, r.db, q, arg); err != nil {
-		span.RecordError(err)
+		skotel.SetError(span, err)
 		r.log.ErrorContext(ctx, "widgetaudit: record failed, requeueing", "event_id", id, "err", err)
 		return broker.Requeue
 	}

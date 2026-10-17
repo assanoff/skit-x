@@ -161,7 +161,9 @@ func (a *App) initConsumers(ctx context.Context) error {
 		return nil
 	}
 
-	recorder := widgetaudit.New(a.d.Logger, a.d.DB(ctx), a.d.Tracer(ctx))
+	recorder := widgetaudit.New(a.d.Logger, a.d.DB(ctx), widgetaudit.Config{
+		TracerProvider: a.d.TracerProvider,
+	})
 	consumer, err := rabbitmq.NewConsumer(a.d.BrokerConn(ctx), a.d.Logger, rabbitmq.ConsumerConfig{
 		Queue:       a.opts.Broker.Queue,
 		Exchange:    a.opts.Broker.Exchange,
@@ -265,8 +267,8 @@ func buildGRPCServer(ctx context.Context, cfg config.GRPC, d *deps.Deps, m *metr
 				MinTime:             10 * time.Second,
 				PermitWithoutStream: true,
 			},
+			TracerProvider: d.TracerProvider,
 		},
-		grpcserver.WithTracer(d.Tracer(ctx)),
 		grpcserver.WithMetrics(m.Registry),
 	)
 	// Each feature owns its generated RegisterXxxServer call behind the

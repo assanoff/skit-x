@@ -126,6 +126,7 @@ func startPostgres(ctx context.Context, t *testing.T) config.ServerOpts {
 
 	pg := dbtest.NewPostgres(ctx, t, dbtest.Config{Migrations: migrations.FS})
 
+	t.Setenv("OTEL_TRACES_EXPORTER", "none") // trace ids without a collector
 	cfg := config.ServerOpts{Service: "test"}
 	cfg.DB = config.DB{
 		User:         pg.Config.User,

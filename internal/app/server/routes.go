@@ -1,7 +1,6 @@
 package server
 
 import (
-	"cmp"
 	"context"
 	"log/slog"
 	"net/http"
@@ -18,7 +17,6 @@ import (
 	"github.com/assanoff/skit/rest/router"
 	"github.com/assanoff/skit/translation/translationrest"
 	"github.com/prometheus/client_golang/prometheus"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/assanoff/skit-x/internal/app/config"
 	"github.com/assanoff/skit-x/internal/app/reqctx"
@@ -42,15 +40,11 @@ import (
 func Install(ctx context.Context, a *App, r *router.Router) {
 	d := a.d
 	api := r.With(
-		// otelhttp opens the server span of every business request, named after
-		// the route ("GET /widgets/jsonapi/{id}"), and records its status. The span
-		// is otelhttp's: nothing below it ends the span.
-		otelhttp.NewMiddleware("http.server", otelhttp.WithSpanNameFormatter(spanName)),
-		// TraceRequest continues that span — it does not re-extract the headers
-		// over it — stores the tracer for otel.AddSpan, puts the trace_id the
-		// access log carries into the context and returns the span's
-		// traceparent with the response.
-		middleware.TraceRequest(d.Tracer(ctx)),
+		// Trace opens the server span of every business request, named after
+		// the route ("GET /widgets/jsonapi/{id}"), and returns its traceparent.
+		// Everything below runs inside it: the access log lines carry its trace
+		// id.
+		middleware.Trace(middleware.TraceConfig{TracerProvider: d.TracerProvider}),
 		// Access logging via the vendored httplog (tagged logger=access).
 		// RecoverPanics turns a panic below the logger into a 500 with the
 		// panic as its error, so the access log and the server span record it;
@@ -97,12 +91,6 @@ func Install(ctx context.Context, a *App, r *router.Router) {
 	// single-HANDLER level. Scheduled compaction is wired separately via the worker
 	// package (see app/server: a worker.Loop calling AuditLog.CompactBatch).
 	handle("POST /auditlog/compact", compactHandler(d.AuditLog(ctx), d.Opts.Audit), guard)
-}
-
-// spanName names the server span after the matched route, so traces group by
-// endpoint rather than by a raw path with ids in it.
-func spanName(operation string, r *http.Request) string {
-	return cmp.Or(r.Pattern, operation)
 }
 
 // appMids returns the application middleware every business route runs,

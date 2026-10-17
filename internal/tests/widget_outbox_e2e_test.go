@@ -8,8 +8,6 @@ import (
 	"time"
 
 	tcrabbitmq "github.com/testcontainers/testcontainers-go/modules/rabbitmq"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
@@ -42,9 +40,8 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	db := openTestDB(t, cfg)
 	log := slog.New(slog.DiscardHandler)
 
-	// Tracing: a W3C propagator plus an in-memory span recorder so we can assert
-	// the consumer continues the producer's trace through the outbox/broker.
-	otel.SetTextMapPropagator(propagation.TraceContext{})
+	// Tracing: an in-memory span recorder so we can assert the consumer
+	// continues the producer's trace through the outbox/broker.
 	spans := tracetest.NewSpanRecorder()
 	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(spans))
 	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
@@ -71,7 +68,7 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	wstore := widgetdb.NewStore(log, db)
 	core := widget.NewCore(log, wstore, widget.WithOutbox(db, store, reg))
 
-	recorder := widgetaudit.New(log, db, tracer)
+	recorder := widgetaudit.New(log, db, widgetaudit.Config{TracerProvider: tp})
 	consumer, err := rabbitmq.NewConsumer(conn, log, rabbitmq.ConsumerConfig{
 		Queue:       queue,
 		Exchange:    exchange,

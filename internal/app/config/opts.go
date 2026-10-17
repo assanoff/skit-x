@@ -13,18 +13,21 @@ import (
 const EnvProduction = "production"
 
 // ServerOpts is the full application configuration. Groups are namespaced so
-// their env vars read as HTTP_ADDR, GRPC_ADDR, DB_USER, OTEL_ENABLED, etc.
+// their env vars read as HTTP_ADDR, GRPC_ADDR, DB_USER, etc. Tracing is
+// configured by the OTEL_* variables of the OpenTelemetry specification (see deps).
 type ServerOpts struct {
 	Service  string `long:"service-name" env:"SERVICE_NAME" default:"skit-example" description:"service name"`
 	Env      string `long:"app-env"      env:"APP_ENV"      default:"development"         description:"runtime environment"`
 	LogLevel string `long:"log-level"    env:"LOG_LEVEL"    default:"info"                description:"log level: debug|info|warn|error"`
+	// Version is the build version, set by internal/cmd from its ldflags
+	// variable; it is not a flag.
+	Version string `no-flag:"true"`
 
 	HTTP        HTTP        `group:"http" namespace:"http" env-namespace:"HTTP"`
 	GRPC        GRPC        `group:"grpc" namespace:"grpc" env-namespace:"GRPC"`
 	Gateway     Gateway     `group:"gateway" namespace:"gateway" env-namespace:"GATEWAY"`
 	Debug       Debug       `group:"debug" namespace:"debug" env-namespace:"DEBUG"`
 	DB          DB          `group:"postgres" namespace:"db" env-namespace:"DB"`
-	OTEL        OTEL        `group:"otel" namespace:"otel" env-namespace:"OTEL"`
 	Worker      Worker      `group:"worker" namespace:"worker" env-namespace:"WORKER"`
 	Broker      Broker      `group:"broker" namespace:"broker" env-namespace:"BROKER"`
 	Auth        Auth        `group:"auth" namespace:"auth" env-namespace:"AUTH"`
@@ -163,12 +166,4 @@ type Audit struct {
 type Translation struct {
 	DefaultLang string `long:"default-lang" env:"DEFAULT_LANG" default:"ru"    description:"default (canonical) language code"`
 	Supported   string `long:"supported"    env:"SUPPORTED"    default:"ru,kk" description:"comma-separated supported language codes"`
-}
-
-// OTEL holds tracing settings.
-type OTEL struct {
-	Enabled     bool    `long:"enabled"     env:"ENABLED"     description:"enable OpenTelemetry tracing"`
-	Endpoint    string  `long:"endpoint"    env:"ENDPOINT"    default:"localhost:4317" description:"OTLP/gRPC collector endpoint"`
-	Insecure    bool    `long:"insecure"    env:"INSECURE"    description:"disable TLS to the collector"`
-	Probability float64 `long:"probability" env:"PROBABILITY" default:"1.0"            description:"trace sampling probability"`
 }

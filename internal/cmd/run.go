@@ -25,6 +25,7 @@ func run(cfg config.ServerOpts, options ...server.Option) error {
 	log := buildLogger(cfg)
 	ctx := context.Background()
 
+	cfg.Version = version
 	a, err := server.New(ctx, cfg, log, options...)
 	if err != nil {
 		return err

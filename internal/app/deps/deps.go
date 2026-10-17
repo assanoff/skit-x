@@ -38,8 +38,10 @@ import (
 type Deps struct {
 	Opts   config.ServerOpts
 	Logger *slog.Logger
+	// TracerProvider is the OpenTelemetry provider set by initTelemetry; pass it
+	// to the Config of every component that records spans.
+	TracerProvider trace.TracerProvider
 
-	Tracer      dim.Provider[trace.Tracer]
 	DB          dim.Provider[*sqlx.DB]
 	Queue       dim.Provider[*queue.PG]
 	BrokerConn  dim.Provider[*rabbitmq.Conn]
@@ -69,7 +71,7 @@ type Deps struct {
 // (e.g. slices.Concat of named groups) to app.InitDeps.
 var Initializers = []app.Initializer[Deps]{
 	// Core infrastructure
-	initTracer,
+	initTelemetry,
 	initStore,
 	initQueue,
 	initBroker,
