@@ -47,6 +47,7 @@ linters:
     - asciicheck
     - bidichk
     - depguard
+    - forbidigo
     - gocheckcompilerdirectives
     - gomoddirectives
     - gosec
@@ -94,6 +95,14 @@ linters:
           deny:
             - pkg: github.com/stretchr/testify
               desc: tests use github.com/matryer/is
+        # One semconv version, the one skit uses: mixed versions drift attribute
+        # names and break the schema URL of the Resource.
+        semconv:
+          list-mode: lax
+          allow: [go.opentelemetry.io/otel/semconv/v1.43.0]
+          deny:
+            - pkg: go.opentelemetry.io/otel/semconv
+              desc: semconv is pinned to v1.43.0, the version of skit
     dupword:
       ignore: [nil] # "(nil, nil)" in doc comments
     errcheck:
@@ -102,6 +111,11 @@ linters:
       exclude-functions: [fmt.Fprint, fmt.Fprintf, fmt.Fprintln]
     exhaustive:
       default-signifies-exhaustive: true
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^trace\.Span\.RecordError$
+          msg: mark the span with otel.SetError (status Error and error.type); the details go to the log record
     exhaustruct_v5:
       explicit-mode: true # only types marked //exhaustruct:enforce
     gomoddirectives:
