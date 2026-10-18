@@ -43,7 +43,7 @@ var initBroker = func(c *Deps) (dim.CleanupFunc, error) {
 	c.Publisher = dim.OnceWithName("Publisher", func(context.Context) (broker.Publisher, error) {
 		return pub, nil
 	})
-	c.Outbox = dim.OnceWithName("Outbox", func(ctx context.Context) (outbox.Store, error) {
+	c.Outbox = dim.OnceWithName("Outbox", func(ctx context.Context) (*outbox.PG, error) {
 		store := outbox.NewPG(c.Logger, c.DB(ctx), outbox.Options{})
 		if err := store.EnsureSchema(ctx); err != nil {
 			return nil, fmt.Errorf("ensure outbox schema: %w", err)

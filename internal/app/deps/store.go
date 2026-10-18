@@ -22,6 +22,7 @@ var initStore = func(c *Deps) (cleanup dim.CleanupFunc, err error) {
 		MaxIdleConns: c.Opts.DB.MaxIdleConns,
 		MaxOpenConns: c.Opts.DB.MaxOpenConns,
 		DisableTLS:   !c.Opts.DB.TLS,
+		Metrics:      c.Metrics,
 	}))
 	return cleanup, nil
 }

@@ -134,22 +134,16 @@ func (a *App) initWorkers(ctx context.Context) error {
 		return nil
 	}
 
+	// The outbox workers record their skit_outbox_* metrics on the process
+	// registry, next to the HTTP/gRPC and business metrics; NewBacklog reads
+	// the backlog gauges from the outbox table.
 	ob := a.d.Outbox(ctx)
-	// Outbox metrics are registered on the shared registry, so they sit alongside
-	// the HTTP/gRPC and business metrics on the same /metrics endpoint without
-	// colliding (distinct skit_outbox_* names).
-	om := outbox.NewMetrics(a.d.Metrics)
 	a.workers = append(a.workers,
-		outbox.NewRelay(a.d.Logger, ob, a.d.Publisher(ctx), outbox.RelayConfig{Metrics: om}),
-		outbox.NewSweeper(a.d.Logger, ob, outbox.SweeperConfig{Metrics: om}),
-		outbox.NewCleaner(a.d.Logger, ob, outbox.CleanerConfig{Metrics: om}),
+		outbox.NewRelay(a.d.Logger, ob, a.d.Publisher(ctx), outbox.RelayConfig{Metrics: a.d.Metrics}),
+		outbox.NewSweeper(a.d.Logger, ob, outbox.SweeperConfig{Metrics: a.d.Metrics}),
+		outbox.NewCleaner(a.d.Logger, ob, outbox.CleanerConfig{Metrics: a.d.Metrics}),
+		outbox.NewBacklog(a.d.Logger, ob, a.d.Metrics),
 	)
-
-	// Backlog gauges query the store on each scrape; register the collector when
-	// the store supports it (the Postgres store does).
-	if sr, ok := ob.(outbox.StatsReader); ok {
-		a.d.Metrics.MustRegister(outbox.NewBacklogCollector(sr, a.d.Logger))
-	}
 	return nil
 }
 
@@ -259,7 +253,7 @@ func buildGRPCServer(ctx context.Context, cfg config.GRPC, d *deps.Deps) *grpcse
 			Addr:             cfg.Addr,
 			ShutdownTimeout:  cfg.ShutdownTimeout,
 			EnableReflection: cfg.Reflection,
-			MetricsNamespace: "skit",
+			Metrics:          d.Metrics,
 			// Performance: messages use the protobuf Opaque API (edition 2023);
 			// tune transport here.
 			MaxRecvMsgSize: cfg.MaxRecvMiB * miB,
@@ -273,7 +267,6 @@ func buildGRPCServer(ctx context.Context, cfg config.GRPC, d *deps.Deps) *grpcse
 			},
 			TracerProvider: d.TracerProvider,
 		},
-		grpcserver.WithMetrics(d.Metrics),
 	)
 	// Each feature owns its generated RegisterXxxServer call behind the
 	// grpcserver.Service seam, so this orchestrator does not register services

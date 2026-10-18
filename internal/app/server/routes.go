@@ -10,13 +10,11 @@ import (
 	"github.com/assanoff/skit/auth"
 	"github.com/assanoff/skit/errs"
 	"github.com/assanoff/skit/httplog"
-	"github.com/assanoff/skit/metrics"
 	"github.com/assanoff/skit/middleware"
 	"github.com/assanoff/skit/rest"
 	"github.com/assanoff/skit/rest/mid"
 	"github.com/assanoff/skit/rest/router"
 	"github.com/assanoff/skit/translation/translationrest"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/assanoff/skit-x/internal/app/config"
 	"github.com/assanoff/skit-x/internal/app/reqctx"
@@ -100,7 +98,8 @@ func Install(ctx context.Context, a *App, r *router.Router) {
 //   - reqctx parses the cross-cutting request headers ONCE (language, tenant,
 //     city) into the context; everything below reads from there instead of
 //     re-parsing headers.
-//   - mid.Chain bundles, in order: Metrics (errs-aware outcome counter) ->
+//   - mid.Chain bundles, in order: the outcome counter
+//     (skit_rest_outcomes_total by domain code, "ok" for success) ->
 //     LocalizeErrors (localizes any *errs.Error into the request language
 //     resolved by reqctx.Language) -> MaskInternal (hides 5xx detail from
 //     clients in production) -> Errors (records 5xx on the trace span + logs
@@ -125,7 +124,7 @@ func (a *App) appMids(ctx context.Context) []rest.MidFunc {
 		Lang:         reqctx.Language,
 		Logger:       d.Logger,
 		MaskInternal: d.Opts.Env == "production",
-		RecordMetric: errorOutcomeRecorder(a.d.Metrics),
+		Metrics:      d.Metrics,
 	})...)
 	a.mids = append(a.mids, translationrest.MiddlewareWithLang(d.Logger, d.Translation(ctx), reqctx.Language))
 	return a.mids
@@ -148,22 +147,5 @@ func compactHandler(core *auditlog.Core, a config.Audit) rest.HandlerFunc {
 			return errs.New(errs.Internal, err)
 		}
 		return rest.JSON(map[string]int{"models": res.Models, "deleted": res.Deleted})
-	}
-}
-
-// errorOutcomeRecorder registers an errs-aware outcome counter on the metrics
-// registry and returns the callback mid.Metrics reports each request's code
-// to. Counts are labeled by domain code ("ok" for success), so /metrics exposes
-// the error rate by code, alongside the HTTP-status request metrics.
-func errorOutcomeRecorder(m *metrics.Metrics) func(code string) {
-	outcomes := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "skit",
-		Subsystem: "app",
-		Name:      "request_outcomes_total",
-		Help:      "Request outcomes by domain error code (ok for success).",
-	}, []string{"code"})
-	m.MustRegister(outcomes)
-	return func(code string) {
-		outcomes.WithLabelValues(code).Inc()
 	}
 }
