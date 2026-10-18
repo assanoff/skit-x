@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/assanoff/skit/app"
+	"github.com/assanoff/skit/broker"
 	"github.com/assanoff/skit/broker/rabbitmq"
 	"github.com/assanoff/skit/closer"
 	"github.com/assanoff/skit/grpcgateway"
@@ -24,6 +25,7 @@ import (
 	"github.com/assanoff/skit/metrics"
 	"github.com/assanoff/skit/middleware"
 	"github.com/assanoff/skit/outbox"
+	"github.com/assanoff/skit/queue"
 	"github.com/assanoff/skit/rest"
 	"github.com/assanoff/skit/worker"
 
@@ -108,9 +110,9 @@ func (a *App) Components() Components {
 	return Components{Servers: addrs, Workers: len(a.workers), Consumers: len(a.consumers)}
 }
 
-// initWorkers registers the background work: the domain loops and — when the
-// broker is enabled — the transactional-outbox workers (relay, sweeper, cleaner)
-// that poll the database.
+// initWorkers registers the background work: the domain loops with the queue
+// backlog and — when the broker is enabled — the transactional-outbox workers
+// (relay, sweeper, cleaner) that poll the database.
 //
 // Run it as a single replica: these loops poll the same rows, so extra replicas
 // only add database load (and any wall-clock job would fire twice).
@@ -120,11 +122,19 @@ func (a *App) Components() Components {
 // which of its workers start.
 func (a *App) initWorkers(ctx context.Context) error {
 	if !a.opts.Worker.Disabled {
+		// The import loop records skit_queue_* and skit_worker_* on the process
+		// registry; NewBacklog reads the backlog gauges from the queue table.
+		imports, err := a.d.WidgetImport(ctx).NewLoop(widgetimport.Config{
+			Interval:  a.opts.Worker.Interval,
+			BatchSize: a.opts.Worker.BatchSize,
+			Metrics:   a.d.Metrics,
+		})
+		if err != nil {
+			return err
+		}
 		a.workers = append(a.workers,
-			a.d.WidgetImport(ctx).NewLoop(widgetimport.Config{
-				Interval:  a.opts.Worker.Interval,
-				BatchSize: a.opts.Worker.BatchSize,
-			}),
+			imports,
+			queue.NewBacklog(a.d.Logger, a.d.Queue(ctx), a.d.Metrics),
 			// The widget-count poller refreshes the cached count served by
 			// GET /widgets/count; it is a worker.Runnable.
 			a.d.WidgetCount(ctx),
@@ -158,12 +168,15 @@ func (a *App) initConsumers(ctx context.Context) error {
 	recorder := widgetaudit.New(a.d.Logger, a.d.DB(ctx), widgetaudit.Config{
 		TracerProvider: a.d.TracerProvider,
 	})
+	// Instrument records skit_broker_* of every message on the process registry.
+	const name = "widget-audit"
+	h := broker.Instrument(recorder.Handle, broker.InstrumentConfig{Consumer: name, Metrics: a.d.Metrics})
 	consumer, err := rabbitmq.NewConsumer(a.d.BrokerConn(ctx), a.d.Logger, rabbitmq.ConsumerConfig{
 		Queue:       a.opts.Broker.Queue,
 		Exchange:    a.opts.Broker.Exchange,
 		RoutingKeys: []string{a.opts.Broker.RoutingKey},
-		Name:        "widget-audit",
-	}, recorder.Handle)
+		Name:        name,
+	}, h)
 	if err != nil {
 		return err
 	}

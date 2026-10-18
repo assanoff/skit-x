@@ -112,8 +112,13 @@ func TestWidgetImportQueue(t *testing.T) {
 	// genuinely interleave). Supervised by a worker.Group.
 	runCtx, cancel := context.WithCancel(ctx)
 	group := worker.NewGroup(log, worker.GroupConfig{ShutdownTimeout: 2 * time.Second})
-	group.Add(im.NewLoop(widgetimport.Config{Interval: 50 * time.Millisecond, BatchSize: 3}))
-	group.Add(im.NewLoop(widgetimport.Config{Interval: 50 * time.Millisecond, BatchSize: 3}))
+	for range 2 {
+		loop, err := im.NewLoop(widgetimport.Config{Interval: 50 * time.Millisecond, BatchSize: 3})
+		if err != nil {
+			t.Fatalf("new loop: %v", err)
+		}
+		group.Add(loop)
+	}
 
 	groupDone := make(chan error, 1)
 	go func() { groupDone <- group.Run(runCtx) }()

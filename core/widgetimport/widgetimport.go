@@ -20,6 +20,8 @@ import (
 	"time"
 	"uuid"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/assanoff/skit/queue"
 	"github.com/assanoff/skit/worker"
 
@@ -95,29 +97,38 @@ type Config struct {
 	Interval time.Duration
 	// BatchSize is the max tasks leased per tick (default 50).
 	BatchSize int
+	// Metrics is the registry for the skit_queue_* metrics of the tasks and the
+	// skit_worker_* metrics of the loop; nil — metrics off.
+	Metrics prometheus.Registerer
 }
 
 // NewLoop builds the background worker.Loop that drains the queue. Run several
 // (in one process via worker.Group, or across replicas) for higher throughput —
-// the queue's SKIP LOCKED claim keeps them from colliding.
-func (im *Importer) NewLoop(cfg Config) *worker.Loop {
+// the queue's SKIP LOCKED claim keeps them from colliding. A queue.Mux routes
+// the tasks of Kind to Handle and records them; a task of another kind is
+// dead-lettered.
+func (im *Importer) NewLoop(cfg Config) (*worker.Loop, error) {
 	if cfg.Interval <= 0 {
 		cfg.Interval = time.Second
 	}
 	if cfg.BatchSize <= 0 {
 		cfg.BatchSize = 50
 	}
+	mux := queue.NewMux(queue.WithMetrics(cfg.Metrics))
+	if err := mux.Register(Kind, im.Handle); err != nil {
+		return nil, fmt.Errorf("widgetimport new loop: %w", err)
+	}
 
 	proc := worker.NewProcessor[queue.Task](
 		im.log,
 		im.q, // Source: Claim
-		worker.HandlerFunc[queue.Task](im.Handle),
+		mux,
 		im.q, // Sink: MarkDone/MarkFailed
 		worker.ProcessorConfig{
 			Name:      Kind,
 			BatchSize: cfg.BatchSize,
 			IsTerminal: func(err error) bool {
-				return errors.Is(err, ErrBadPayload)
+				return errors.Is(err, ErrBadPayload) || errors.Is(err, queue.ErrUnknownKind)
 			},
 		},
 	)
@@ -125,5 +136,6 @@ func (im *Importer) NewLoop(cfg Config) *worker.Loop {
 		Name:               Kind,
 		Interval:           cfg.Interval,
 		ImmediateFirstTick: true,
-	}, proc.Tick())
+		Metrics:            cfg.Metrics,
+	}, proc.Tick()), nil
 }
