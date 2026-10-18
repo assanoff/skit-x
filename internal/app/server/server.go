@@ -169,12 +169,17 @@ func (a *App) initConsumers(ctx context.Context) error {
 		return nil
 	}
 
-	recorder := widgetaudit.New(a.d.Logger, a.d.DB(ctx), widgetaudit.Config{
+	recorder := widgetaudit.New(a.d.Logger, a.d.DB(ctx))
+	// Instrument records every message as a consumer span that continues the
+	// trace of the request that created the event, and in skit_broker_* on the
+	// process registry.
+	const name = "widget-audit"
+	h := broker.Instrument(recorder.Handle, broker.InstrumentConfig{
+		Consumer:       name,
+		System:         "rabbitmq",
+		Metrics:        a.d.Metrics,
 		TracerProvider: a.d.TracerProvider,
 	})
-	// Instrument records skit_broker_* of every message on the process registry.
-	const name = "widget-audit"
-	h := broker.Instrument(recorder.Handle, broker.InstrumentConfig{Consumer: name, Metrics: a.d.Metrics})
 	consumer, err := rabbitmq.NewConsumer(a.d.BrokerConn(ctx), a.d.Logger, rabbitmq.ConsumerConfig{
 		Queue:       a.opts.Broker.Queue,
 		Exchange:    a.opts.Broker.Exchange,

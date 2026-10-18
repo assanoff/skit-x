@@ -10,7 +10,9 @@ import (
 	tcrabbitmq "github.com/testcontainers/testcontainers-go/modules/rabbitmq"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
 
+	"github.com/assanoff/skit/broker"
 	"github.com/assanoff/skit/broker/rabbitmq"
 	"github.com/assanoff/skit/outbox"
 	"github.com/assanoff/skit/worker"
@@ -48,13 +50,13 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	tracer := tp.Tracer("e2e")
 
 	amqpURL := startRabbitMQ(ctx, t)
-	conn, err := rabbitmq.Dial(log, rabbitmq.Config{URL: amqpURL})
+	conn, err := rabbitmq.Dial(rabbitmq.Config{URL: amqpURL})
 	if err != nil {
 		t.Fatalf("dial rabbitmq: %v", err)
 	}
 	t.Cleanup(func() { _ = conn.Close() })
 
-	pub, err := rabbitmq.NewPublisher(conn, log, rabbitmq.PublisherConfig{Source: "skit-test"})
+	pub, err := rabbitmq.NewPublisher(conn, rabbitmq.PublisherConfig{Source: "skit-test", TracerProvider: tp})
 	if err != nil {
 		t.Fatalf("new publisher: %v", err)
 	}
@@ -68,13 +70,18 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	wstore := widgetdb.NewStore(log, db)
 	core := widget.NewCore(log, wstore, widget.WithOutbox(db, store, reg))
 
-	recorder := widgetaudit.New(log, db, widgetaudit.Config{TracerProvider: tp})
+	recorder := widgetaudit.New(log, db)
+	handler := broker.Instrument(recorder.Handle, broker.InstrumentConfig{
+		Consumer:       "widget-audit-test",
+		System:         "rabbitmq",
+		TracerProvider: tp,
+	})
 	consumer, err := rabbitmq.NewConsumer(conn, log, rabbitmq.ConsumerConfig{
 		Queue:       queue,
 		Exchange:    exchange,
 		RoutingKeys: []string{routingKey},
 		Name:        "widget-audit-test",
-	}, recorder.Handle)
+	}, handler)
 	if err != nil {
 		t.Fatalf("new consumer: %v", err)
 	}
@@ -105,7 +112,6 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create widget: %v", err)
 	}
-	wantTraceID := prodSpan.SpanContext().TraceID()
 
 	// Wait for the consumer to record the event in the audit log.
 	var (
@@ -151,23 +157,45 @@ func TestWidgetOutboxE2E(t *testing.T) {
 		t.Errorf("outbox status = %q, want sent", status)
 	}
 
-	// Trace continuation: the consumer should have opened a span that is a child
-	// of the producer span (same trace id, parent = producer), proving the trace
-	// flowed producer -> outbox -> broker -> consumer. The span ends in Handle's
-	// defer, which may land just after the audit row commits, so poll for it.
-	var consumerSpan sdktrace.ReadOnlySpan
-	found := eventually(10*time.Second, 100*time.Millisecond, func() bool {
-		consumerSpan = endedSpan(spans, "widgetaudit.record")
-		return consumerSpan != nil
-	})
-	if !found {
-		t.Fatal("timed out waiting for the consumer span")
+	assertTraceContinued(t, spans, exchange, prodSpan.SpanContext())
+}
+
+// assertTraceContinued checks that the relay sent the event under a CLIENT
+// span and the consumer handled it under a CONSUMER span, both children of the
+// producer span (same trace id, parent = producer), so the trace flows
+// producer -> outbox -> broker -> consumer; the consumer span also links the
+// producer. The spans end in defers that may land just after the audit row
+// commits, so it polls for them.
+func assertTraceContinued(t *testing.T, spans *tracetest.SpanRecorder, exchange string, prod trace.SpanContext) {
+	t.Helper()
+	for _, want := range []struct {
+		name string
+		kind trace.SpanKind
+	}{
+		{"send " + exchange, trace.SpanKindClient},
+		{"process " + exchange, trace.SpanKindConsumer},
+	} {
+		var span sdktrace.ReadOnlySpan
+		found := eventually(10*time.Second, 100*time.Millisecond, func() bool {
+			span = endedSpan(spans, want.name)
+			return span != nil
+		})
+		if !found {
+			t.Fatalf("timed out waiting for the span %q", want.name)
+		}
+		if span.SpanKind() != want.kind {
+			t.Errorf("%s: kind = %s, want %s", want.name, span.SpanKind(), want.kind)
+		}
+		if got := span.SpanContext().TraceID(); got != prod.TraceID() {
+			t.Errorf("%s: trace id = %s, want %s (trace not continued)", want.name, got, prod.TraceID())
+		}
+		if got := span.Parent().SpanID(); got != prod.SpanID() {
+			t.Errorf("%s: parent = %s, want producer span %s", want.name, got, prod.SpanID())
+		}
 	}
-	if got := consumerSpan.SpanContext().TraceID(); got != wantTraceID {
-		t.Errorf("consumer span trace id = %s, want %s (trace not continued)", got, wantTraceID)
-	}
-	if got := consumerSpan.Parent().SpanID(); got != prodSpan.SpanContext().SpanID() {
-		t.Errorf("consumer span parent = %s, want producer span %s", got, prodSpan.SpanContext().SpanID())
+	process := endedSpan(spans, "process "+exchange)
+	if links := process.Links(); len(links) != 1 || links[0].SpanContext.SpanID() != prod.SpanID() {
+		t.Errorf("consumer span links = %v, want one link to the producer span", links)
 	}
 }
 

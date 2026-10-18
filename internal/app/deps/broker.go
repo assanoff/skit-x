@@ -21,7 +21,7 @@ var initBroker = func(c *Deps) (dim.CleanupFunc, error) {
 		return nil, nil
 	}
 
-	conn, err := rabbitmq.Dial(c.Logger, rabbitmq.Config{
+	conn, err := rabbitmq.Dial(rabbitmq.Config{
 		User:     bcfg.User,
 		Password: bcfg.Password,
 		Host:     bcfg.Host,
@@ -31,7 +31,12 @@ var initBroker = func(c *Deps) (dim.CleanupFunc, error) {
 		return nil, err
 	}
 
-	pub, err := rabbitmq.NewPublisher(conn, c.Logger, rabbitmq.PublisherConfig{Source: bcfg.Source})
+	// The publisher records a send span per message; the relay's events go
+	// out under the trace of the request that created them.
+	pub, err := rabbitmq.NewPublisher(conn, rabbitmq.PublisherConfig{
+		Source:         bcfg.Source,
+		TracerProvider: c.TracerProvider,
+	})
 	if err != nil {
 		_ = conn.Close()
 		return nil, err
