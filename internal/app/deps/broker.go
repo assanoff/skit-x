@@ -31,7 +31,7 @@ var initBroker = func(c *Deps) (dim.CleanupFunc, error) {
 		return nil, err
 	}
 
-	pub, err := rabbitmq.NewPublisher(conn, bcfg.Source, c.Logger)
+	pub, err := rabbitmq.NewPublisher(conn, c.Logger, rabbitmq.PublisherConfig{Source: bcfg.Source})
 	if err != nil {
 		_ = conn.Close()
 		return nil, err

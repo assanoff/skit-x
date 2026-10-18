@@ -54,7 +54,7 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = conn.Close() })
 
-	pub, err := rabbitmq.NewPublisher(conn, "skit-test", log)
+	pub, err := rabbitmq.NewPublisher(conn, log, rabbitmq.PublisherConfig{Source: "skit-test"})
 	if err != nil {
 		t.Fatalf("new publisher: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestWidgetOutboxE2E(t *testing.T) {
 
 	// Supervise the consumer and relay together.
 	runCtx, cancel := context.WithCancel(ctx)
-	group := worker.NewGroup(log, 3*time.Second)
+	group := worker.NewGroup(log, worker.GroupConfig{ShutdownTimeout: 3 * time.Second})
 	group.Add(consumer)
 	group.Add(relay)
 	groupDone := make(chan error, 1)

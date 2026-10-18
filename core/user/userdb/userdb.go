@@ -1,7 +1,7 @@
 // Package userdb is the Postgres implementation of user.Store. It maps between
 // the domain User and its database row and uses the skit dbx helpers for
 // query logging and error translation, following the SDK pg-store convention
-// (inline const queries, a model.go row type, dialect-composed pagination).
+// (inline const queries, a model.go row type).
 package userdb
 
 import (
@@ -16,7 +16,6 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/assanoff/skit/dbx"
-	"github.com/assanoff/skit/dbx/dialect"
 	"github.com/assanoff/skit/order"
 	"github.com/assanoff/skit/page"
 
@@ -25,29 +24,13 @@ import (
 
 // Store implements user.Store against Postgres.
 type Store struct {
-	log     *slog.Logger
-	db      *sqlx.DB
-	dialect dialect.Dialect
-}
-
-// Option customizes a Store.
-type Option func(*Store)
-
-// WithDialect overrides the SQL dialect used to compose engine-specific SQL
-// (pagination). Defaults to dialect.Postgres.
-func WithDialect(d dialect.Dialect) Option {
-	return func(s *Store) {
-		s.dialect = d
-	}
+	log *slog.Logger
+	db  *sqlx.DB
 }
 
 // NewStore builds a Store over the connection pool.
-func NewStore(log *slog.Logger, db *sqlx.DB, opts ...Option) *Store {
-	s := &Store{log: log, db: db, dialect: dialect.Postgres{}}
-	for _, o := range opts {
-		o(s)
-	}
-	return s
+func NewStore(log *slog.Logger, db *sqlx.DB) *Store {
+	return &Store{log: log, db: db}
 }
 
 // Compile-time check that Store satisfies the domain contract.
@@ -120,7 +103,7 @@ func (s *Store) Count(ctx context.Context, filter user.QueryFilter) (int, error)
 
 // Query implements user.Store: one filtered, ordered page. The WHERE is built by
 // applyFilter, the ORDER BY by orderByClause (allowlisted), and the pagination
-// clause via the store's dialect, binding :offset and :rows_per_page below.
+// clause binds :offset and :rows_per_page below.
 func (s *Store) Query(ctx context.Context, filter user.QueryFilter, by order.By, pg page.Page) ([]user.User, error) {
 	clause, err := orderByClause(by)
 	if err != nil {
@@ -135,7 +118,7 @@ func (s *Store) Query(ctx context.Context, filter user.QueryFilter, by order.By,
 	buf := bytes.NewBufferString(`SELECT id, email, name, created_at, updated_at FROM users`)
 	s.applyFilter(filter, data, buf)
 	buf.WriteString(clause)
-	s.dialect.Paginate(buf)
+	buf.WriteString(" OFFSET :offset ROWS FETCH NEXT :rows_per_page ROWS ONLY")
 
 	var rows []dbUser
 	if err := dbx.NamedQuerySlice(ctx, s.log, s.db, buf.String(), data, &rows); err != nil {

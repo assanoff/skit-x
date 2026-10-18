@@ -7,6 +7,7 @@ import (
 
 	"github.com/assanoff/skit/auth"
 	"github.com/assanoff/skit/dim"
+	"github.com/assanoff/skit/i18n"
 	"github.com/assanoff/skit/provider"
 
 	"github.com/assanoff/skit-x/internal/app/locale"
@@ -17,7 +18,10 @@ import (
 // responses are localized by Accept-Language.
 var initTranslator = func(c *Deps) (cleanup dim.CleanupFunc, err error) {
 	c.Translator, cleanup = dim.NewResource("Translator",
-		provider.Translator(locale.DefaultLang, locale.FS, locale.Files...))
+		provider.Translator(locale.FS, i18n.Config{
+			DefaultLang: locale.DefaultLang,
+			Files:       locale.Files,
+		}))
 	return cleanup, nil
 }
 

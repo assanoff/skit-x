@@ -60,7 +60,7 @@ func (c *MigrateCommand) Execute(args []string) error {
 
 	ctx := context.Background()
 
-	m, err := migrate.New(migrate.Postgres, db.DB, migrations.FS)
+	m, err := migrate.New(db.DB, migrations.FS)
 	if err != nil {
 		return fmt.Errorf("build migrator: %w", err)
 	}

@@ -15,7 +15,6 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/assanoff/skit/dbx"
-	"github.com/assanoff/skit/dbx/dialect"
 	"github.com/assanoff/skit/order"
 	"github.com/assanoff/skit/page"
 
@@ -24,27 +23,13 @@ import (
 
 // Store implements widget.Store against Postgres.
 type Store struct {
-	log     *slog.Logger
-	db      sqlx.ExtContext
-	dialect dialect.Dialect
-}
-
-// Option customizes a Store.
-type Option func(*Store)
-
-// WithDialect overrides the SQL dialect used to compose engine-specific SQL
-// (pagination). Defaults to dialect.Postgres.
-func WithDialect(d dialect.Dialect) Option {
-	return func(s *Store) { s.dialect = d }
+	log *slog.Logger
+	db  sqlx.ExtContext
 }
 
 // NewStore builds a Store. Pass a *sqlx.DB for pool-backed use.
-func NewStore(log *slog.Logger, db *sqlx.DB, opts ...Option) *Store {
-	s := &Store{log: log, db: db, dialect: dialect.Postgres{}}
-	for _, o := range opts {
-		o(s)
-	}
-	return s
+func NewStore(log *slog.Logger, db *sqlx.DB) *Store {
+	return &Store{log: log, db: db}
 }
 
 // Compile-time check that Store satisfies the domain contract.
@@ -53,7 +38,7 @@ var _ widget.Store = (*Store)(nil)
 // WithTx returns a sibling Store whose queries run on tx, so a widget write can
 // commit atomically with an outbox event.
 func (s *Store) WithTx(tx sqlx.ExtContext) widget.Store {
-	return &Store{log: s.log, db: tx, dialect: s.dialect}
+	return &Store{log: s.log, db: tx}
 }
 
 // Create implements widget.Store.
@@ -143,8 +128,7 @@ func (s *Store) Count(ctx context.Context, filter widget.QueryFilter) (int, erro
 
 // Query implements widget.Store: one filtered, ordered page. The WHERE is built
 // by applyFilter, the ORDER BY by orderByClause (allowlisted), and the pagination
-// clause via the store's dialect (engine-specific OFFSET/FETCH vs LIMIT/OFFSET
-// behind one seam), binding :offset and :rows_per_page below.
+// clause binds :offset and :rows_per_page below.
 func (s *Store) Query(ctx context.Context, filter widget.QueryFilter, by order.By, pg page.Page) ([]widget.Widget, error) {
 	clause, err := orderByClause(by)
 	if err != nil {
@@ -159,7 +143,7 @@ func (s *Store) Query(ctx context.Context, filter widget.QueryFilter, by order.B
 	buf := bytes.NewBufferString(`SELECT id, name, description, created_at, updated_at FROM widgets`)
 	s.applyFilter(filter, data, buf)
 	buf.WriteString(clause)
-	s.dialect.Paginate(buf)
+	buf.WriteString(" OFFSET :offset ROWS FETCH NEXT :rows_per_page ROWS ONLY")
 
 	var rows []dbWidget
 	if err := dbx.NamedQuerySlice(ctx, s.log, s.db, buf.String(), data, &rows); err != nil {

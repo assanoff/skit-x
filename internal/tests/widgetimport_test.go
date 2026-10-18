@@ -111,7 +111,7 @@ func TestWidgetImportQueue(t *testing.T) {
 	// Two concurrent processors over the same queue (small batch size so they
 	// genuinely interleave). Supervised by a worker.Group.
 	runCtx, cancel := context.WithCancel(ctx)
-	group := worker.NewGroup(log, 2*time.Second)
+	group := worker.NewGroup(log, worker.GroupConfig{ShutdownTimeout: 2 * time.Second})
 	group.Add(im.NewLoop(widgetimport.Config{Interval: 50 * time.Millisecond, BatchSize: 3}))
 	group.Add(im.NewLoop(widgetimport.Config{Interval: 50 * time.Millisecond, BatchSize: 3}))
 
