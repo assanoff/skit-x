@@ -29,6 +29,7 @@ import (
 	"github.com/assanoff/skit/rest"
 	"github.com/assanoff/skit/worker"
 
+	"github.com/assanoff/skit-x/core/widget"
 	"github.com/assanoff/skit-x/core/widgetaudit"
 	"github.com/assanoff/skit-x/core/widgetimport"
 	"github.com/assanoff/skit-x/internal/app/config"
@@ -132,12 +133,15 @@ func (a *App) initWorkers(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		// The widget-count poller refreshes the cached count served by
+		// GET /widgets/count; it is a worker.Runnable. skitx_widget_count reads
+		// the same cache on scrape, so it is registered only where the poller runs.
+		count := a.d.WidgetCount(ctx)
+		widget.CountGauge(a.d.Metrics, count.Current)
 		a.workers = append(a.workers,
 			imports,
 			queue.NewBacklog(a.d.Logger, a.d.Queue(ctx), a.d.Metrics),
-			// The widget-count poller refreshes the cached count served by
-			// GET /widgets/count; it is a worker.Runnable.
-			a.d.WidgetCount(ctx),
+			count,
 		)
 	}
 	if !a.opts.Broker.Enabled {

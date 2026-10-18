@@ -55,6 +55,8 @@ type Core struct {
 	// best-effort widget.created event after the write (the in-process complement
 	// to the durable outbox above). nil disables in-process dispatch.
 	bus *eventbus.Bus
+
+	m metrics
 }
 
 // Option customizes a Core.
@@ -84,7 +86,7 @@ func WithEventBus(bus *eventbus.Bus) Option {
 
 // NewCore constructs a Core.
 func NewCore(log *slog.Logger, store Store, opts ...Option) *Core {
-	c := &Core{log: log, store: store}
+	c := &Core{log: log, store: store, m: newMetrics(nil)}
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -112,6 +114,7 @@ func (c *Core) Create(ctx context.Context, nw NewWidget) (Widget, error) {
 		}
 		return Widget{}, errs.New(errs.Internal, err)
 	}
+	c.m.created.Inc()
 
 	// In-process, synchronous, best-effort notification. Unlike the outbox above
 	// (durable, transactional, cross-service), these handlers run now on this

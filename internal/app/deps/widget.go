@@ -26,7 +26,7 @@ var initWidgetCore = func(c *Deps) (dim.CleanupFunc, error) {
 
 		// In-process dispatch is always on (a bus with no consumers is a no-op);
 		// the durable outbox is added only when the broker is enabled.
-		opts := []widget.Option{widget.WithEventBus(c.Bus(ctx))}
+		opts := []widget.Option{widget.WithEventBus(c.Bus(ctx)), widget.WithMetrics(c.Metrics)}
 		if c.Opts.Broker.Enabled {
 			reg := outbox.NewRegistry()
 			if err := reg.Register[widget.Created](
