@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -39,7 +40,6 @@ func TestWidgetOutboxE2E(t *testing.T) {
 
 	ctx := context.Background()
 	cfg := startPostgres(ctx, t)
-	db := openTestDB(t, cfg)
 	log := slog.New(slog.DiscardHandler)
 
 	// Tracing: an in-memory span recorder so we can assert the consumer
@@ -48,6 +48,7 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(spans))
 	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
 	tracer := tp.Tracer("e2e")
+	db := openTracedDB(t, cfg, tp)
 
 	amqpURL := startRabbitMQ(ctx, t)
 	conn, err := rabbitmq.Dial(rabbitmq.Config{URL: amqpURL})
@@ -157,7 +158,35 @@ func TestWidgetOutboxE2E(t *testing.T) {
 		t.Errorf("outbox status = %q, want sent", status)
 	}
 
+	assertQueriesTraced(t, spans, prodSpan.SpanContext())
 	assertTraceContinued(t, spans, exchange, prodSpan.SpanContext())
+}
+
+// assertQueriesTraced checks that the transaction of the producer — the widget
+// row and its outbox event — is recorded as query spans under the producer
+// span, BEGIN and COMMIT included.
+func assertQueriesTraced(t *testing.T, spans *tracetest.SpanRecorder, prod trace.SpanContext) {
+	t.Helper()
+	var texts []string
+	for _, s := range spans.Ended() {
+		if s.Parent().SpanID() != prod.SpanID() {
+			continue
+		}
+		for _, kv := range s.Attributes() {
+			if kv.Key == "db.query.text" {
+				texts = append(texts, kv.Value.AsString())
+			}
+		}
+	}
+	want := []string{"begin", "INSERT INTO widgets", "INSERT INTO outbox_events", "commit"}
+	if len(texts) != len(want) {
+		t.Fatalf("queries under the producer span = %q, want %q", texts, want)
+	}
+	for i, w := range want {
+		if !strings.Contains(texts[i], w) {
+			t.Errorf("query %d = %q, want it to contain %q", i, texts[i], w)
+		}
+	}
 }
 
 // assertTraceContinued checks that the relay sent the event under a CLIENT

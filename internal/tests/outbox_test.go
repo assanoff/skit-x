@@ -9,6 +9,7 @@ import (
 	"uuid"
 
 	"github.com/jmoiron/sqlx"
+	"go.opentelemetry.io/otel/trace"
 
 	auditdb "github.com/assanoff/skit/auditlog/db"
 	"github.com/assanoff/skit/dbx"
@@ -259,10 +260,17 @@ func ensureSDKSchemas(ctx context.Context, t *testing.T, cfg config.ServerOpts) 
 // broker integration tests.
 func openTestDB(t *testing.T, cfg config.ServerOpts) *sqlx.DB {
 	t.Helper()
+	return openTracedDB(t, cfg, nil)
+}
+
+// openTracedDB opens the test database with its queries recorded on tp.
+func openTracedDB(t *testing.T, cfg config.ServerOpts, tp trace.TracerProvider) *sqlx.DB {
+	t.Helper()
 	db, err := dbx.Open(dbx.Config{
 		User: cfg.DB.User, Password: cfg.DB.Password, Host: cfg.DB.Host,
 		Name: cfg.DB.Name, Schema: cfg.DB.Schema,
 		DisableTLS: true, MaxIdleConns: 4, MaxOpenConns: 10,
+		TracerProvider: tp,
 	})
 	if err != nil {
 		t.Fatalf("open db: %v", err)

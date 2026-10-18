@@ -14,15 +14,16 @@ import (
 // container, using the SDK's ready-made Postgres provider.
 var initStore = func(c *Deps) (cleanup dim.CleanupFunc, err error) {
 	c.DB, cleanup = dim.NewResource("Store", provider.Postgres(dbx.Config{
-		User:         c.Opts.DB.User,
-		Password:     c.Opts.DB.Password,
-		Host:         c.Opts.DB.Host,
-		Name:         c.Opts.DB.Name,
-		Schema:       c.Opts.DB.Schema,
-		MaxIdleConns: c.Opts.DB.MaxIdleConns,
-		MaxOpenConns: c.Opts.DB.MaxOpenConns,
-		DisableTLS:   !c.Opts.DB.TLS,
-		Metrics:      c.Metrics,
+		User:           c.Opts.DB.User,
+		Password:       c.Opts.DB.Password,
+		Host:           c.Opts.DB.Host,
+		Name:           c.Opts.DB.Name,
+		Schema:         c.Opts.DB.Schema,
+		MaxIdleConns:   c.Opts.DB.MaxIdleConns,
+		MaxOpenConns:   c.Opts.DB.MaxOpenConns,
+		DisableTLS:     !c.Opts.DB.TLS,
+		Metrics:        c.Metrics,
+		TracerProvider: c.TracerProvider,
 	}))
 	return cleanup, nil
 }
