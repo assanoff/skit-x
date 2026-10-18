@@ -210,6 +210,14 @@ up: ## Start local dependencies (docker compose up -d)
 down: ## Stop local dependencies (docker compose down)
 	docker compose down
 
+.PHONY: up-observability
+up-observability: ## Start the dependencies and the observability stand: Jaeger :16686, Prometheus :9091, Grafana :3000
+	docker compose --profile observability up -d
+
+.PHONY: down-observability
+down-observability: ## Stop the dependencies and the observability stand
+	docker compose --profile observability down
+
 # ---------------------------------------------------------------------------
 # Database migrations (reads config from .env, like the app)
 # ---------------------------------------------------------------------------

@@ -28,3 +28,43 @@ services:
       interval: 5s
       timeout: 5s
       retries: 15
+
+  # The observability stand (make up-observability): traces in Jaeger, metrics
+  # in Prometheus, both in Grafana. The commands run on the host and export to
+  # it — see deploy/observability/README.md.
+  jaeger:
+    # 2.20: the Jaeger data source of Grafana 11.6 lists services by
+    # /api/services, which 2.21 no longer serves.
+    image: jaegertracing/jaeger:2.20.0
+    profiles: [observability]
+    ports:
+      - "16686:16686" # UI
+      - "4317:4317"   # OTLP/gRPC from the commands
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: [observability]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --enable-feature=exemplar-storage
+    volumes:
+      - ./deploy/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "9091:9090" # 9090 is the gRPC server of skit-x
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    profiles: [observability]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./deploy/observability/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ./deploy/observability/grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+      - ../skit/metrics/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on: [prometheus, jaeger]

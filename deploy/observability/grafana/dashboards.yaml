@@ -1,0 +1,10 @@
+# The skit dashboards (skit/metrics/dashboards), mounted from the sibling skit
+# checkout — the same one go.mod replaces the SDK with.
+apiVersion: 1
+
+providers:
+  - name: skit
+    folder: skit
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

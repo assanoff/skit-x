@@ -1,0 +1,15 @@
+# Prometheus of the observability stand: it scrapes the debug servers of the
+# skit-x commands running on the host (make run / run-worker / run-consumer).
+# A command that is not running shows as a down target.
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: skit-x
+    static_configs:
+      - targets: ["host.docker.internal:6060"]
+        labels: {namespace: local, pod: serve}
+      - targets: ["host.docker.internal:6061"]
+        labels: {namespace: local, pod: worker}
+      - targets: ["host.docker.internal:6062"]
+        labels: {namespace: local, pod: consumer}
