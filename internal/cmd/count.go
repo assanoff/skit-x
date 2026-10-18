@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/assanoff/skit/app"
+	"github.com/assanoff/skit/metrics"
 
 	"github.com/assanoff/skit-x/internal/app/config"
 	"github.com/assanoff/skit-x/internal/app/deps"
@@ -25,7 +26,7 @@ func (c *CountCommand) Execute(_ []string) error {
 		return err
 	}
 	log := buildLogger(cfg)
-	d := &deps.Deps{Opts: cfg, Logger: log}
+	d := &deps.Deps{Opts: cfg, Logger: log, Metrics: metrics.New()}
 
 	return app.RunCommand(context.Background(), app.CommandConfig{}, d, deps.Storage,
 		func(ctx context.Context, d *deps.Deps) error {

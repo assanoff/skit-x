@@ -54,7 +54,7 @@ func Install(ctx context.Context, a *App, r *router.Router) {
 			Schema:        httplog.SchemaOTEL.Concise(true),
 			RecoverPanics: true,
 		}),
-		a.m.Middleware(),
+		a.d.Metrics.Middleware(),
 		middleware.Timeout(d.Opts.HTTP.RequestTimeout),
 		middleware.SizeLimit(d.Opts.HTTP.BodySizeLimit),
 	).WithApp(a.appMids(ctx)...)
@@ -125,7 +125,7 @@ func (a *App) appMids(ctx context.Context) []rest.MidFunc {
 		Lang:         reqctx.Language,
 		Logger:       d.Logger,
 		MaskInternal: d.Opts.Env == "production",
-		RecordMetric: errorOutcomeRecorder(a.m),
+		RecordMetric: errorOutcomeRecorder(a.d.Metrics),
 	})...)
 	a.mids = append(a.mids, translationrest.MiddlewareWithLang(d.Logger, d.Translation(ctx), reqctx.Language))
 	return a.mids
@@ -162,7 +162,7 @@ func errorOutcomeRecorder(m *metrics.Metrics) func(code string) {
 		Name:      "request_outcomes_total",
 		Help:      "Request outcomes by domain error code (ok for success).",
 	}, []string{"code"})
-	m.Registry.MustRegister(outcomes)
+	m.MustRegister(outcomes)
 	return func(code string) {
 		outcomes.WithLabelValues(code).Inc()
 	}

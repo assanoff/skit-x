@@ -74,7 +74,7 @@ func WithGRPC(addr string) Option {
 		}
 		cfg := a.opts.GRPC
 		cfg.Addr = addr
-		a.servers = append(a.servers, buildGRPCServer(ctx, cfg, a.d, a.m))
+		a.servers = append(a.servers, buildGRPCServer(ctx, cfg, a.d))
 		return nil
 	}
 }
@@ -141,7 +141,7 @@ func Health(_ context.Context, a *App, r *router.Router) {
 
 // Metrics is the Prometheus endpoint /metrics.
 func Metrics(_ context.Context, a *App, r *router.Router) {
-	r.Handle("GET /metrics", a.m.Handler())
+	r.Handle("GET /metrics", a.d.Metrics.Handler())
 }
 
 // Pprof is net/http/pprof under /debug/pprof/. Keep it off a public port.

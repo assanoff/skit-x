@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/assanoff/skit/httpserver"
+	"github.com/assanoff/skit/metrics"
 	"github.com/assanoff/skit/rest/router"
 
 	"github.com/assanoff/skit-x/internal/app/config"
@@ -134,7 +135,8 @@ func newTestApp(t *testing.T, options ...Option) *App {
 
 	log := slog.New(slog.DiscardHandler)
 	opts := config.ServerOpts{Service: "test"}
-	a := newApp(opts, log, &deps.Deps{Opts: opts, Logger: log})
+	d := &deps.Deps{Opts: opts, Logger: log, Metrics: metrics.New()}
+	a := newApp(opts, log, d)
 	for _, add := range options {
 		if err := add(context.Background(), a); err != nil {
 			t.Fatalf("option: %v", err)

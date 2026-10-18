@@ -39,7 +39,6 @@ type App struct {
 	opts config.ServerOpts
 	log  *slog.Logger
 	d    *deps.Deps
-	m    *metrics.Metrics
 
 	// mids is the application middleware of the business routes, built by
 	// the first Install (see appMids).
@@ -77,7 +76,7 @@ func New(ctx context.Context, opts config.ServerOpts, log *slog.Logger, options 
 }
 
 func newApp(opts config.ServerOpts, log *slog.Logger, d *deps.Deps) *App {
-	return &App{opts: opts, log: log, d: d, m: metrics.New("skit")}
+	return &App{opts: opts, log: log, d: d}
 }
 
 // Runnables returns the servers, workers and consumers, ready to hand to
@@ -139,7 +138,7 @@ func (a *App) initWorkers(ctx context.Context) error {
 	// Outbox metrics are registered on the shared registry, so they sit alongside
 	// the HTTP/gRPC and business metrics on the same /metrics endpoint without
 	// colliding (distinct skit_outbox_* names).
-	om := outbox.NewMetrics(a.m.Registry)
+	om := outbox.NewMetrics(a.d.Metrics)
 	a.workers = append(a.workers,
 		outbox.NewRelay(a.d.Logger, ob, a.d.Publisher(ctx), outbox.RelayConfig{Metrics: om}),
 		outbox.NewSweeper(a.d.Logger, ob, outbox.SweeperConfig{Metrics: om}),
@@ -149,7 +148,7 @@ func (a *App) initWorkers(ctx context.Context) error {
 	// Backlog gauges query the store on each scrape; register the collector when
 	// the store supports it (the Postgres store does).
 	if sr, ok := ob.(outbox.StatsReader); ok {
-		a.m.Registry.MustRegister(outbox.NewBacklogCollector(sr, a.d.Logger))
+		a.d.Metrics.MustRegister(outbox.NewBacklogCollector(sr, a.d.Logger))
 	}
 	return nil
 }
@@ -240,20 +239,20 @@ func GRPCServer(ctx context.Context, opts config.ServerOpts, log *slog.Logger) (
 	if err != nil {
 		return nil, err
 	}
-	return buildGRPCServer(ctx, opts.GRPC, d, metrics.New("skit")), nil
+	return buildGRPCServer(ctx, opts.GRPC, d), nil
 }
 
 // initDeps builds the Deps container and runs the initializers (registering
 // cleanups with the global closer).
 func initDeps(opts config.ServerOpts, log *slog.Logger) (*deps.Deps, error) {
-	d := &deps.Deps{Opts: opts, Logger: log}
+	d := &deps.Deps{Opts: opts, Logger: log, Metrics: metrics.New()}
 	if err := app.InitDeps(d, deps.Initializers); err != nil {
 		return nil, err
 	}
 	return d, nil
 }
 
-func buildGRPCServer(ctx context.Context, cfg config.GRPC, d *deps.Deps, m *metrics.Metrics) *grpcserver.Server {
+func buildGRPCServer(ctx context.Context, cfg config.GRPC, d *deps.Deps) *grpcserver.Server {
 	const miB = 1 << 20
 	gs := grpcserver.New(
 		d.Logger, grpcserver.Config{
@@ -274,7 +273,7 @@ func buildGRPCServer(ctx context.Context, cfg config.GRPC, d *deps.Deps, m *metr
 			},
 			TracerProvider: d.TracerProvider,
 		},
-		grpcserver.WithMetrics(m.Registry),
+		grpcserver.WithMetrics(d.Metrics),
 	)
 	// Each feature owns its generated RegisterXxxServer call behind the
 	// grpcserver.Service seam, so this orchestrator does not register services

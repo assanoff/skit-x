@@ -18,6 +18,7 @@ import (
 	"github.com/assanoff/skit/dim"
 	"github.com/assanoff/skit/eventbus"
 	"github.com/assanoff/skit/i18n"
+	"github.com/assanoff/skit/metrics"
 	"github.com/assanoff/skit/outbox"
 	"github.com/assanoff/skit/poller"
 	"github.com/assanoff/skit/queue"
@@ -38,6 +39,10 @@ import (
 type Deps struct {
 	Opts   config.ServerOpts
 	Logger *slog.Logger
+	// Metrics is the Prometheus registry of the process, built in the Deps
+	// literal before the initializers; pass it to every component that records
+	// metrics.
+	Metrics *metrics.Metrics
 	// TracerProvider is the OpenTelemetry provider set by initTelemetry; pass it
 	// to the Config of every component that records spans.
 	TracerProvider trace.TracerProvider
