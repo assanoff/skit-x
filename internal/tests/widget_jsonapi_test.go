@@ -7,7 +7,7 @@ import (
 )
 
 // TestWidgetJSONAPI exercises the JSON:API variant of the widget read endpoints,
-// which return the jsonapi-tagged widget.Resource via the SDK's to.JSONAPI
+// which return the jsonapi-tagged widget.Resource via the SDK's jsonapi.Payload
 // helper (github.com/hashicorp/jsonapi builds the document).
 func TestWidgetJSONAPI(t *testing.T) {
 	if testing.Short() {

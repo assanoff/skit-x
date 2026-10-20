@@ -18,7 +18,6 @@ import (
 	"github.com/assanoff/skit/errs"
 	"github.com/assanoff/skit/order"
 	"github.com/assanoff/skit/page"
-	"github.com/assanoff/skit/query"
 	"github.com/assanoff/skit/rest"
 
 	productcore "github.com/assanoff/skit-x/core/product"
@@ -91,12 +90,12 @@ func (h *Handler) query(ctx context.Context, r *http.Request) rest.ResponseEncod
 	if err != nil {
 		return errs.From(err)
 	}
-	return query.NewResult(toResponseList(ps), total, pg)
+	return rest.NewResult(toResponseList(ps), total, pg)
 }
 
 // queryCursor lists products with keyset (cursor) pagination: ?cursor=<token>
 // (the opaque token from a prior page's next, empty for the first page) and
-// ?limit=N. It returns a query.CursorResult carrying the items and the next-page
+// ?limit=N. It returns a rest.CursorResult carrying the items and the next-page
 // token. Forward-only — prev is not emitted.
 func (h *Handler) queryCursor(ctx context.Context, r *http.Request) rest.ResponseEncoder {
 	q := r.URL.Query()
@@ -114,7 +113,7 @@ func (h *Handler) queryCursor(ctx context.Context, r *http.Request) rest.Respons
 	if err != nil {
 		return errs.From(err)
 	}
-	return query.NewCursorResult(toResponseList(ps), next, "")
+	return rest.NewCursorResult(toResponseList(ps), next, "")
 }
 
 // parseProductFilter reads the optional listing filter from the query string:

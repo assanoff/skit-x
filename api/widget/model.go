@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/assanoff/skit/query"
+	"github.com/assanoff/skit/rest"
 	"github.com/assanoff/skit/translation"
 	"github.com/assanoff/skit/validate"
 
@@ -153,12 +153,12 @@ func (l ResponseList) Encode() ([]byte, string, error) {
 }
 
 // PagedResponse is a page of widget responses: it embeds the SDK's
-// query.Result (the {error_code, data:{items, pagination}} envelope and its
+// rest.Result (the {error_code, data:{items, pagination}} envelope and its
 // Encode) and also implements translation.TranslatableList over the items, so
 // the translationrest middleware still localizes each widget before the
 // envelope is encoded.
 type PagedResponse struct {
-	query.Result[*Response]
+	rest.Result[*Response]
 }
 
 // Translatables implements translation.TranslatableList.
@@ -171,12 +171,12 @@ func (p PagedResponse) Translatables() []translation.Translatable {
 }
 
 // CursorPagedResponse is a cursor (keyset) page of widget responses: it embeds
-// the SDK's query.CursorResult (items + next/prev tokens, and its Encode) and
+// the SDK's rest.CursorResult (items + next/prev tokens, and its Encode) and
 // implements translation.TranslatableList over the items, so the translationrest
 // middleware still localizes each widget before the envelope is encoded — the
 // keyset counterpart of PagedResponse.
 type CursorPagedResponse struct {
-	query.CursorResult[*Response]
+	rest.CursorResult[*Response]
 }
 
 // Translatables implements translation.TranslatableList.
@@ -208,8 +208,8 @@ func toResponseList(ws []widgetcore.Widget) ResponseList {
 
 // Resource is the JSON:API representation of a widget. Its fields are tagged for
 // github.com/hashicorp/jsonapi, which assembles the document — the handler just
-// returns to.JSONAPI(resource). It is an alternative DTO to Response for clients
-// that speak JSON:API (see the /widgets/jsonapi endpoints).
+// returns jsonapi.Payload(resource). It is an alternative DTO to Response for
+// clients that speak JSON:API (see the /widgets/jsonapi endpoints).
 type Resource struct {
 	ID          string    `jsonapi:"primary,widgets"`
 	Name        string    `jsonapi:"attr,name"`

@@ -15,9 +15,8 @@ import (
 	"github.com/assanoff/skit/errs"
 	"github.com/assanoff/skit/order"
 	"github.com/assanoff/skit/page"
-	"github.com/assanoff/skit/query"
 	"github.com/assanoff/skit/rest"
-	"github.com/assanoff/skit/to"
+	"github.com/assanoff/skit/rest/jsonapi"
 	"github.com/assanoff/skit/translation"
 
 	widgetcore "github.com/assanoff/skit-x/core/widget"
@@ -62,7 +61,7 @@ func (h *Handler) Routes(handle rest.Handle) {
 	// ?page/?rows offset paging. The literal /cursor segment is matched ahead of
 	// /{id} by net/http's pattern precedence.
 	handle("GET /widgets/cursor", h.queryCursor)
-	// JSON:API variants (same data, application/vnd.api+json via to.JSONAPI).
+	// JSON:API variants: the same data as application/vnd.api+json.
 	handle("GET /widgets/jsonapi", h.queryJSONAPI)
 	handle("GET /widgets/jsonapi/{id}", h.queryByIDJSONAPI)
 	handle("GET /widgets/{id}", h.queryByID)
@@ -154,10 +153,10 @@ func (h *Handler) query(ctx context.Context, r *http.Request) rest.ResponseEncod
 	if err != nil {
 		return errs.From(err)
 	}
-	// PagedResponse wraps query.Result and implements translation.TranslatableList,
+	// PagedResponse wraps rest.Result and implements translation.TranslatableList,
 	// so the translationrest middleware still reaches and translates each item
 	// before the result (items + total + page) is encoded.
-	return PagedResponse{Result: query.NewResult(toResponseList(ws), total, pg)}
+	return PagedResponse{Result: rest.NewResult(toResponseList(ws), total, pg)}
 }
 
 // queryCursor lists widgets with keyset (cursor) pagination: ?cursor=<token> (the
@@ -178,7 +177,7 @@ func (h *Handler) queryCursor(ctx context.Context, r *http.Request) rest.Respons
 	if err != nil {
 		return errs.From(err)
 	}
-	return CursorPagedResponse{CursorResult: query.NewCursorResult(toResponseList(ws), next, "")}
+	return CursorPagedResponse{CursorResult: rest.NewCursorResult(toResponseList(ws), next, "")}
 }
 
 // parseWidgetFilter reads the optional listing filter from the query string:
@@ -231,9 +230,9 @@ func (h *Handler) queryByID(ctx context.Context, r *http.Request) rest.ResponseE
 }
 
 // queryJSONAPI lists widgets as a JSON:API collection. It mirrors query but
-// returns the WidgetResource DTO (jsonapi-tagged) via to.JSONAPI, which builds
-// the application/vnd.api+json document. Content is canonical (the JSON:API
-// encoder is not wired into the per-record translation middleware).
+// returns the WidgetResource DTO (jsonapi-tagged) via jsonapi.Payload, which
+// builds the application/vnd.api+json document. Content is canonical (the
+// JSON:API encoder is not wired into the per-record translation middleware).
 //
 //	@Summary	List widgets (JSON:API)
 //	@Tags		widgets
@@ -254,7 +253,7 @@ func (h *Handler) queryJSONAPI(ctx context.Context, r *http.Request) rest.Respon
 	if err != nil {
 		return errs.From(err)
 	}
-	return to.JSONAPI(toResourceList(ws))
+	return jsonapi.Payload(toResourceList(ws))
 }
 
 // queryByIDJSONAPI returns a single widget as a JSON:API resource.
@@ -274,7 +273,7 @@ func (h *Handler) queryByIDJSONAPI(ctx context.Context, r *http.Request) rest.Re
 	if err != nil {
 		return errs.From(err)
 	}
-	return to.JSONAPI(toResource(w))
+	return jsonapi.Payload(toResource(w))
 }
 
 // update applies a partial update to a widget.

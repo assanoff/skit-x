@@ -13,7 +13,7 @@ import (
 
 // TestUserCRUD exercises the user module end to end (auth disabled by default in
 // newTestServer, so writes are open). It mirrors the widget CRUD test against the
-// /users endpoints and the query.Result list envelope.
+// /users endpoints and the rest.Result list envelope.
 func TestUserCRUD(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test requires docker")
@@ -39,7 +39,7 @@ func TestUserCRUD(t *testing.T) {
 	decode(t, resp, &got)
 	is.Equal(got["name"], "Alice")
 
-	// List: query.Result envelope {error_code, data:{items, pagination}}.
+	// List: rest.Result envelope {error_code, data:{items, pagination}}.
 	resp = doReq(t, srv, http.MethodGet, "/users", "")
 	is.Equal(resp.StatusCode, http.StatusOK)
 	var list struct {

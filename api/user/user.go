@@ -20,7 +20,6 @@ import (
 	"github.com/assanoff/skit/errs"
 	"github.com/assanoff/skit/order"
 	"github.com/assanoff/skit/page"
-	"github.com/assanoff/skit/query"
 	"github.com/assanoff/skit/rest"
 	"github.com/assanoff/skit/rest/mid"
 
@@ -102,12 +101,12 @@ func (h *Handler) query(ctx context.Context, r *http.Request) rest.ResponseEncod
 	if err != nil {
 		return errs.From(err)
 	}
-	return query.NewResult(toResponseList(us), total, pg)
+	return rest.NewResult(toResponseList(us), total, pg)
 }
 
 // queryCursor lists users with keyset (cursor) pagination: ?cursor=<token> (the
 // opaque token from a prior page's next, empty for the first page), ?limit=N, and
-// the same ?name/?email filter. It returns a query.CursorResult with the items
+// the same ?name/?email filter. It returns a rest.CursorResult with the items
 // and the next-page token. Forward-only — prev is not emitted.
 func (h *Handler) queryCursor(ctx context.Context, r *http.Request) rest.ResponseEncoder {
 	q := r.URL.Query()
@@ -122,7 +121,7 @@ func (h *Handler) queryCursor(ctx context.Context, r *http.Request) rest.Respons
 	if err != nil {
 		return errs.From(err)
 	}
-	return query.NewCursorResult(toResponseList(us), next, "")
+	return rest.NewCursorResult(toResponseList(us), next, "")
 }
 
 // parseUserFilter reads the optional listing filter from the query string: ?name
