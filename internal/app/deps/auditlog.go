@@ -6,7 +6,7 @@ import (
 
 	"github.com/assanoff/skit/auditlog"
 	"github.com/assanoff/skit/auditlog/auditbus"
-	auditdb "github.com/assanoff/skit/auditlog/db"
+	"github.com/assanoff/skit/auditlog/auditpg"
 	"github.com/assanoff/skit/dim"
 )
 
@@ -21,7 +21,7 @@ var initAuditLog = func(c *Deps) (dim.CleanupFunc, error) {
 		a := c.Opts.Audit
 		// The audit_log table is owned by the SDK auditlog package, so it is
 		// provisioned here at startup via EnsureSchema (advisory-lock guarded).
-		store := auditdb.NewStore(c.Logger, c.DB(ctx))
+		store := auditpg.NewStore(c.Logger, c.DB(ctx))
 		if err := store.EnsureSchema(ctx); err != nil {
 			return nil, fmt.Errorf("ensure auditlog schema: %w", err)
 		}

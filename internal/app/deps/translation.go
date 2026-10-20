@@ -7,7 +7,7 @@ import (
 
 	"github.com/assanoff/skit/dim"
 	"github.com/assanoff/skit/translation"
-	translationpg "github.com/assanoff/skit/translation/postgres"
+	"github.com/assanoff/skit/translation/translationpg"
 )
 
 // initTranslation builds the content-translation translator over its Postgres

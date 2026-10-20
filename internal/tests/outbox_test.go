@@ -11,12 +11,12 @@ import (
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel/trace"
 
-	auditdb "github.com/assanoff/skit/auditlog/db"
+	"github.com/assanoff/skit/auditlog/auditpg"
 	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/outbox"
 	"github.com/assanoff/skit/queue"
 	"github.com/assanoff/skit/retry"
-	translationpg "github.com/assanoff/skit/translation/postgres"
+	"github.com/assanoff/skit/translation/translationpg"
 
 	"github.com/assanoff/skit-x/internal/app/config"
 )
@@ -252,7 +252,7 @@ func ensureSDKSchemas(ctx context.Context, t *testing.T, cfg config.ServerOpts) 
 	}
 	must("queue", queue.NewPG(log, db, queue.Options{}).EnsureSchema(ctx))
 	must("outbox", outbox.NewPG(log, db, outbox.Options{}).EnsureSchema(ctx))
-	must("auditlog", auditdb.NewStore(log, db).EnsureSchema(ctx))
+	must("auditlog", auditpg.NewStore(log, db).EnsureSchema(ctx))
 	must("translation", translationpg.NewStore(log, db).EnsureSchema(ctx))
 }
 
