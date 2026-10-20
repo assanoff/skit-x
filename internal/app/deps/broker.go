@@ -17,7 +17,7 @@ import (
 // broker is disabled this is a no-op and the providers stay nil.
 var initBroker = func(c *Deps) (dim.CleanupFunc, error) {
 	bcfg := c.Opts.Broker
-	if !bcfg.Enabled {
+	if !bcfg.Enabled() {
 		return nil, nil
 	}
 

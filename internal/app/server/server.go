@@ -118,7 +118,7 @@ func (a *App) Components() Components {
 // Run it as a single replica: these loops poll the same rows, so extra replicas
 // only add database load (and any wall-clock job would fire twice).
 //
-// Worker.Disabled and Broker.Enabled are configuration, not composition: the
+// Worker.Disabled and Broker.Enabled() are configuration, not composition: the
 // command decides whether WithWorkers is in its list at all, the switches decide
 // which of its workers start.
 func (a *App) initWorkers(ctx context.Context) error {
@@ -144,7 +144,7 @@ func (a *App) initWorkers(ctx context.Context) error {
 			count,
 		)
 	}
-	if !a.opts.Broker.Enabled {
+	if !a.opts.Broker.Enabled() {
 		return nil
 	}
 
@@ -165,7 +165,7 @@ func (a *App) initWorkers(ctx context.Context) error {
 // reliable publish->consume pipeline whose sending half (the outbox workers)
 // belongs to initWorkers. Competing consumers, so more than one replica is safe.
 func (a *App) initConsumers(ctx context.Context) error {
-	if !a.opts.Broker.Enabled {
+	if !a.opts.Broker.Enabled() {
 		return nil
 	}
 

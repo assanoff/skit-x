@@ -133,7 +133,7 @@ run-worker: ## Run the background workers only, debug on :6061
 
 .PHONY: run-consumer
 run-consumer: ## Run the queue consumers only, debug on :6062
-	@trap 'exit 0' INT; DEBUG_ADDR=localhost:6062 BROKER_ENABLED=true $(GO) run -ldflags "$(LDFLAGS)" . consumer
+	@trap 'exit 0' INT; DEBUG_ADDR=localhost:6062 BROKER_HOST=localhost $(GO) run -ldflags "$(LDFLAGS)" . consumer
 
 # ---------------------------------------------------------------------------
 # Test

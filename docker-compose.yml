@@ -13,7 +13,7 @@ services:
       timeout: 3s
       retries: 15
 
-  # Needed by the broker pipeline (BROKER_ENABLED=true): the outbox relay runs
+  # Needed by the broker pipeline (BROKER_HOST=localhost): the outbox relay runs
   # by the worker command, the widget-audit consumer by the consumer command.
   rabbitmq:
     image: rabbitmq:3.13-management-alpine

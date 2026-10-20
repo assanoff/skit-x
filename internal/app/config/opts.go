@@ -106,15 +106,14 @@ type Worker struct {
 	CountInterval time.Duration `long:"count-interval" env:"COUNT_INTERVAL" default:"5s" description:"widget-count poller refresh interval"`
 }
 
-// Broker holds RabbitMQ + transactional-outbox settings. It is OFF by default
-// (Enabled kill-switch inverted: brokers need external infra, unlike the
-// servers/workers which default on). When disabled, widget.Create skips event
-// publishing and no relay/consumer runs.
+// Broker holds RabbitMQ + transactional-outbox settings. The broker is on iff
+// Host is non-empty, so an empty BROKER_HOST turns it off without a separate
+// flag. When off, widget.Create skips event publishing and no relay/consumer
+// runs.
 type Broker struct {
-	Enabled    bool   `long:"enabled"     env:"ENABLED"     description:"enable RabbitMQ + outbox"`
 	User       string `long:"user"        env:"USER"        default:"guest"            description:"rabbitmq user"        json:"-"`
 	Password   string `long:"password"    env:"PASSWORD"    default:"guest"            description:"rabbitmq password"    json:"-"`
-	Host       string `long:"host"        env:"HOST"        default:"localhost"        description:"rabbitmq host"`
+	Host       string `long:"host"        env:"HOST"                                    description:"rabbitmq host (empty disables the broker)"`
 	Port       string `long:"port"        env:"PORT"        default:"5672"             description:"rabbitmq port"`
 	Source     string `long:"source"      env:"SOURCE"      default:"skit-example" description:"CloudEvents source"`
 	Exchange   string `long:"exchange"    env:"EXCHANGE"    default:"skit.widgets" description:"widget events exchange"`
@@ -122,24 +121,24 @@ type Broker struct {
 	Queue      string `long:"queue"       env:"QUEUE"       default:"skit.widget-audit" description:"consumer queue"`
 }
 
-// Auth holds JWT authentication settings for widget write endpoints. Off by
-// default; when enabled a valid HMAC-signed JWT carrying RequiredRole is needed
-// to create/update/delete widgets. Reads stay public.
+// Auth holds JWT authentication settings for widget write endpoints. Auth is on
+// iff JWTSecret is non-empty, so an empty AUTH_JWT_SECRET turns it off without a
+// separate flag. When on, a valid HMAC-signed JWT carrying RequiredRole is
+// needed to create/update/delete widgets. Reads stay public.
 type Auth struct {
-	Enabled      bool   `long:"enabled"       env:"ENABLED"       description:"require JWT auth on widget writes"`
-	JWTSecret    string `long:"jwt-secret"    env:"JWT_SECRET"    default:"" description:"HMAC secret for JWT verification" json:"-"`
+	JWTSecret    string `long:"jwt-secret"    env:"JWT_SECRET"    default:"" description:"HMAC secret for JWT verification (empty disables auth)" json:"-"`
 	Issuer       string `long:"issuer"        env:"ISSUER"        default:"" description:"expected JWT issuer (optional)"`
 	Audience     string `long:"audience"      env:"AUDIENCE"      default:"" description:"expected JWT audience (optional)"`
 	RequiredRole string `long:"required-role" env:"REQUIRED_ROLE" default:"widget:write" description:"role required for widget writes"`
 }
 
-// Webhook holds the outbound widget.created webhook settings. OFF by default
-// (it needs an external receiver). When enabled, an in-process eventbus consumer
-// POSTs each created widget to URL using a resilient HTTP client that retries
-// 429/503 with backoff (httpmw). It is independent of the broker/outbox.
+// Webhook holds the outbound widget.created webhook settings. The webhook is on
+// iff URL is non-empty, so an empty WEBHOOK_URL turns it off without a separate
+// flag. When on, an in-process eventbus consumer POSTs each created widget to
+// URL using a resilient HTTP client that retries 429/503 with backoff (httpmw).
+// It is independent of the broker/outbox.
 type Webhook struct {
-	Enabled     bool          `long:"enabled"      env:"ENABLED"      description:"POST widget.created to a webhook via the resilient HTTP client"`
-	URL         string        `long:"url"          env:"URL"          default:""      description:"webhook endpoint receiving widget.created notifications"`
+	URL         string        `long:"url"          env:"URL"          default:""      description:"webhook endpoint receiving widget.created notifications (empty disables the webhook)"`
 	Timeout     time.Duration `long:"timeout"      env:"TIMEOUT"      default:"3s"    description:"per-attempt timeout for webhook delivery"`
 	MaxAttempts int           `long:"max-attempts" env:"MAX_ATTEMPTS" default:"4"     description:"max delivery attempts (retries on 429/503)"`
 	BackoffBase time.Duration `long:"backoff-base" env:"BACKOFF_BASE" default:"200ms" description:"first retry delay"`
@@ -167,3 +166,12 @@ type Translation struct {
 	DefaultLang string `long:"default-lang" env:"DEFAULT_LANG" default:"ru"    description:"default (canonical) language code"`
 	Supported   string `long:"supported"    env:"SUPPORTED"    default:"ru,kk" description:"comma-separated supported language codes"`
 }
+
+// Enabled reports whether the broker is on: its Host is set.
+func (b Broker) Enabled() bool { return b.Host != "" }
+
+// Enabled reports whether auth is on: its JWTSecret is set.
+func (a Auth) Enabled() bool { return a.JWTSecret != "" }
+
+// Enabled reports whether the webhook is on: its URL is set.
+func (w Webhook) Enabled() bool { return w.URL != "" }

@@ -63,11 +63,11 @@ func Install(ctx context.Context, a *App, r *router.Router) {
 	// Authorization is a single guard middleware: auth.Guard composes Authenticate
 	// + RequireRole (via rest.Chain) into one rest.MidFunc. d.AuthVerifier is nil
 	// when auth is disabled and auth.Guard then returns nil — a no-op the Handle
-	// seam skips — so no Auth.Enabled check is needed here: a nil guard leaves every
-	// route open. The same guard is applied at different levels: globally it would
-	// go on appMids; here it guards the whole product GROUP (WithApp) and a single
-	// HANDLER (the compact route), while widget and user build their own per-route
-	// guards inside Routes.
+	// seam skips — so no Auth.Enabled() check is needed here: a nil guard leaves
+	// every route open. The same guard is applied at different levels: globally
+	// it would go on appMids; here it guards the whole product GROUP (WithApp)
+	// and a single HANDLER (the compact route), while widget and user build
+	// their own per-route guards inside Routes.
 	guard := auth.Guard(d.AuthVerifier(ctx), d.Opts.Auth.RequiredRole)
 
 	// widget and user take only the seam — the uniform Routes signature. They build

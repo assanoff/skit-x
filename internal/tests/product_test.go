@@ -73,7 +73,6 @@ func TestGroupVsRouteAuth(t *testing.T) {
 
 	ctx := context.Background()
 	cfg := startPostgres(ctx, t)
-	cfg.Auth.Enabled = true
 	cfg.Auth.JWTSecret = "test-secret"
 	cfg.Auth.RequiredRole = "admin"
 	cfg.HTTP.RequestTimeout = 10 * time.Second
