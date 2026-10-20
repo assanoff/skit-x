@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/assanoff/skit/errs"
+	"github.com/assanoff/skit/validate"
 
 	usercore "github.com/assanoff/skit-x/core/user"
 )
@@ -26,7 +26,7 @@ func (req *CreateUserReq) Decode(data []byte) error {
 
 // Validate validates the request via its struct tags.
 func (req *CreateUserReq) Validate() error {
-	return errs.Check(req)
+	return validate.Check(req)
 }
 
 // UpdateUserReq is a partial user update; nil fields are left unchanged.
@@ -45,7 +45,7 @@ func (req *UpdateUserReq) Decode(data []byte) error {
 
 // Validate validates the request via its struct tags.
 func (req *UpdateUserReq) Validate() error {
-	return errs.Check(req)
+	return validate.Check(req)
 }
 
 // Response is the REST representation of a user. It implements rest.ResponseEncoder, so

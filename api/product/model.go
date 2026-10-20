@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/assanoff/skit/errs"
+	"github.com/assanoff/skit/validate"
 
 	productcore "github.com/assanoff/skit-x/core/product"
 )
@@ -26,7 +26,7 @@ func (req *CreateProductReq) Decode(data []byte) error {
 
 // Validate validates the request via its struct tags.
 func (req *CreateProductReq) Validate() error {
-	return errs.Check(req)
+	return validate.Check(req)
 }
 
 // UpdateProductReq is a partial product update; nil fields are left unchanged.
@@ -45,7 +45,7 @@ func (req *UpdateProductReq) Decode(data []byte) error {
 
 // Validate validates the request via its struct tags.
 func (req *UpdateProductReq) Validate() error {
-	return errs.Check(req)
+	return validate.Check(req)
 }
 
 // Response is the REST representation of a product. It implements rest.ResponseEncoder

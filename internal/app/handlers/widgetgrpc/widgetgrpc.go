@@ -15,6 +15,7 @@ import (
 
 	"github.com/assanoff/skit/errs"
 	"github.com/assanoff/skit/page"
+	"github.com/assanoff/skit/validate"
 
 	"github.com/assanoff/skit-x/core/widget"
 	widgetv1 "github.com/assanoff/skit-x/gen/widget/v1"
@@ -50,7 +51,7 @@ func (*Handler) RegisterGateway(ctx context.Context, mux *runtime.ServeMux, conn
 // CreateWidget implements the gRPC WidgetService.
 func (h *Handler) CreateWidget(ctx context.Context, req *widgetv1.CreateWidgetRequest) (*widgetv1.CreateWidgetResponse, error) {
 	nw := widget.NewWidget{Name: req.GetName(), Description: req.GetDescription()}
-	if err := errs.Check(struct {
+	if err := validate.Check(struct {
 		Name string `validate:"required,max=100"`
 	}{Name: nw.Name}); err != nil {
 		return nil, err

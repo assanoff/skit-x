@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/assanoff/skit/errs"
 	"github.com/assanoff/skit/query"
 	"github.com/assanoff/skit/translation"
+	"github.com/assanoff/skit/validate"
 
 	widgetcore "github.com/assanoff/skit-x/core/widget"
 )
@@ -28,7 +28,7 @@ func (req *CreateWidgetReq) Decode(data []byte) error {
 
 // Validate validates the request via its struct tags.
 func (req *CreateWidgetReq) Validate() error {
-	return errs.Check(req)
+	return validate.Check(req)
 }
 
 // UpdateWidgetReq is the request body for a partial widget update; nil fields
@@ -48,7 +48,7 @@ func (req *UpdateWidgetReq) Decode(data []byte) error {
 
 // Validate validates the request via its struct tags.
 func (req *UpdateWidgetReq) Validate() error {
-	return errs.Check(req)
+	return validate.Check(req)
 }
 
 // TranslateWidgetReq saves a translation of a widget's content into one language.
@@ -68,7 +68,7 @@ func (req *TranslateWidgetReq) Decode(data []byte) error {
 
 // Validate validates the request via its struct tags.
 func (req *TranslateWidgetReq) Validate() error {
-	return errs.Check(req)
+	return validate.Check(req)
 }
 
 // ImportWidgetsReq is a batch enqueued for asynchronous bulk import. Name is an
@@ -88,7 +88,7 @@ func (req *ImportWidgetsReq) Decode(data []byte) error {
 
 // Validate validates the request (and each nested widget) via struct tags.
 func (req *ImportWidgetsReq) Validate() error {
-	return errs.Check(req)
+	return validate.Check(req)
 }
 
 // ImportResponse acknowledges an accepted bulk-import batch.
