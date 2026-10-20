@@ -8,17 +8,17 @@ import (
 	"github.com/assanoff/skit/auth"
 	"github.com/assanoff/skit/dim"
 	"github.com/assanoff/skit/i18n"
-	"github.com/assanoff/skit/provider"
+	"github.com/assanoff/skit/provider/translator"
 
 	"github.com/assanoff/skit-x/internal/app/locale"
 )
 
-// initTranslator builds the i18n translator from the embedded catalogs via the
-// SDK's language-agnostic provider.Translator. It is always available — error
+// initTranslator builds the i18n translator from the embedded catalogs through
+// the ready factory of provider/translator. It is always available — error
 // responses are localized by Accept-Language.
 var initTranslator = func(c *Deps) (cleanup dim.CleanupFunc, err error) {
 	c.Translator, cleanup = dim.NewResource("Translator",
-		provider.Translator(locale.FS, i18n.Config{
+		translator.Resource(locale.FS, i18n.Config{
 			DefaultLang: locale.DefaultLang,
 			Files:       locale.Files,
 		}))

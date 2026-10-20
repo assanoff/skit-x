@@ -38,7 +38,7 @@ func run(cfg config.ServerOpts, options ...server.Option) error {
 		"servers", c.Servers, "workers", c.Workers, "consumers", c.Consumers)
 
 	// app.Run owns the signal context, the worker.Group supervision, and the
-	// global closer (LIFO resource release) — see internal/app/deps + provider.
+	// global closer (LIFO resource release) — see internal/app/deps.
 	return app.Run(ctx, app.RunConfig{
 		Logger:          log,
 		ShutdownTimeout: cfg.HTTP.ShutdownTimeout,

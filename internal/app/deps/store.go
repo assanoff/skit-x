@@ -6,14 +6,14 @@ import (
 
 	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/dim"
-	"github.com/assanoff/skit/provider"
+	"github.com/assanoff/skit/provider/postgres"
 	"github.com/assanoff/skit/queue"
 )
 
 // initStore initializes the Postgres connection pool and assigns it to the
-// container, using the SDK's ready-made Postgres provider.
+// container through the ready Postgres factory of provider/postgres.
 var initStore = func(c *Deps) (cleanup dim.CleanupFunc, err error) {
-	c.DB, cleanup = dim.NewResource("Store", provider.Postgres(dbx.Config{
+	c.DB, cleanup = dim.NewResource("Store", postgres.Resource(dbx.Config{
 		User:           c.Opts.DB.User,
 		Password:       c.Opts.DB.Password,
 		Host:           c.Opts.DB.Host,
