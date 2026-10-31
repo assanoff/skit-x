@@ -85,12 +85,15 @@ func TestWidgetCRUD(t *testing.T) {
 		t.Fatalf("expected invalid_argument, got %v", errBody)
 	}
 
-	// Delete -> 204, then 404.
+	// Delete -> 204, then 404 on read and on a second delete.
 	delResp := doReq(t, srv, http.MethodDelete, "/widgets/"+id, "")
 	assertStatus(t, delResp, http.StatusNoContent)
 
 	missing := doReq(t, srv, http.MethodGet, "/widgets/"+id, "")
 	assertStatus(t, missing, http.StatusNotFound)
+
+	again := doReq(t, srv, http.MethodDelete, "/widgets/"+id, "")
+	assertStatus(t, again, http.StatusNotFound)
 
 	// Health endpoints.
 	assertStatus(t, doReq(t, srv, http.MethodGet, "/healthz", ""), http.StatusOK)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/assanoff/skit/dbx"
+	"github.com/assanoff/skit/dbx/pg"
 	"github.com/assanoff/skit/migrate"
 
 	"github.com/assanoff/skit-x/internal/app/config"
@@ -34,7 +35,7 @@ func (c *MigrateCommand) Execute(args []string) error {
 		direction = args[0]
 	}
 
-	db, err := dbx.Open(dbx.Config{
+	db, err := pg.Open(pg.Config{
 		User:         cfg.DB.User,
 		Password:     cfg.DB.Password,
 		Host:         cfg.DB.Host,
@@ -60,7 +61,7 @@ func (c *MigrateCommand) Execute(args []string) error {
 
 	ctx := context.Background()
 
-	m, err := migrate.New(db.DB, migrations.FS)
+	m, err := migrate.New(db.DB.DB, migrations.FS)
 	if err != nil {
 		return fmt.Errorf("build migrator: %w", err)
 	}

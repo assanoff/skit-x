@@ -8,11 +8,11 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/assanoff/skit/auditlog/auditpg"
 	"github.com/assanoff/skit/dbx"
+	"github.com/assanoff/skit/dbx/pg"
 	"github.com/assanoff/skit/outbox"
 	"github.com/assanoff/skit/queue"
 	"github.com/assanoff/skit/retry"
@@ -48,7 +48,7 @@ func TestOutboxStoreFSM(t *testing.T) {
 
 // outboxLeaseAndMarkSent checks that an inserted event is leased once and
 // marked sent, and that a re-mark with the stale lease is ErrLeaseLost.
-func outboxLeaseAndMarkSent(ctx context.Context, store *outbox.PG, db *sqlx.DB) func(*testing.T) {
+func outboxLeaseAndMarkSent(ctx context.Context, store *outbox.PG, db *dbx.DB) func(*testing.T) {
 	return func(t *testing.T) {
 		ev := mustNewEvent(t, "test.created")
 		if err := store.Insert(ctx, ev); err != nil {
@@ -89,37 +89,38 @@ func outboxLeaseAndMarkSent(ctx context.Context, store *outbox.PG, db *sqlx.DB) 
 }
 
 // outboxRetryThenFail checks that a retryable failure returns the event to
-// pending and the failure that reaches MaxAttempts makes it terminal.
-func outboxRetryThenFail(ctx context.Context, store *outbox.PG, db *sqlx.DB) func(*testing.T) {
+// pending even past max_attempts (attempts limit nothing) and a terminal
+// failure makes it failed.
+func outboxRetryThenFail(ctx context.Context, store *outbox.PG, db *dbx.DB) func(*testing.T) {
 	return func(t *testing.T) {
 		ev := mustNewEvent(t, "test.fails")
-		ev.MaxAttempts = 2
+		ev.MaxAttempts = 1
 		if err := store.Insert(ctx, ev); err != nil {
 			t.Fatalf("insert: %v", err)
 		}
 
-		// Attempt 1: retryable -> back to pending.
+		// Attempt 1: retryable -> back to pending, past max_attempts.
 		now := time.Now().UTC()
 		leased, _ := store.LeasePending(ctx, now, 10)
 		g := findEvent(leased, ev.ID)
 		if g == nil {
 			t.Fatal("event not leased on attempt 1")
 		}
-		if err := store.MarkFailed(ctx, *g, g.LeaseID, "boom", now); err != nil {
+		if err := store.MarkFailed(ctx, *g, g.LeaseID, "boom", false, now); err != nil {
 			t.Fatalf("mark failed 1: %v", err)
 		}
 		if s := statusOf(t, db, ev.ID); s != outbox.StatusPending {
 			t.Fatalf("after attempt 1 status = %q, want pending", s)
 		}
 
-		// Attempt 2: hits max_attempts -> terminal failed.
+		// Attempt 2: terminal -> failed.
 		now = time.Now().UTC().Add(time.Second)
 		leased, _ = store.LeasePending(ctx, now, 10)
 		g = findEvent(leased, ev.ID)
 		if g == nil {
 			t.Fatal("event not re-leased on attempt 2")
 		}
-		if err := store.MarkFailed(ctx, *g, g.LeaseID, "boom again", now); err != nil {
+		if err := store.MarkFailed(ctx, *g, g.LeaseID, "too large", true, now); err != nil {
 			t.Fatalf("mark failed 2: %v", err)
 		}
 		if s := statusOf(t, db, ev.ID); s != outbox.StatusFailed {
@@ -130,7 +131,7 @@ func outboxRetryThenFail(ctx context.Context, store *outbox.PG, db *sqlx.DB) fun
 
 // outboxSweepExpiredLease checks that the sweep returns an in_flight event
 // whose lease expired to pending.
-func outboxSweepExpiredLease(ctx context.Context, store *outbox.PG, db *sqlx.DB) func(*testing.T) {
+func outboxSweepExpiredLease(ctx context.Context, store *outbox.PG, db *dbx.DB) func(*testing.T) {
 	return func(t *testing.T) {
 		ev := mustNewEvent(t, "test.sweep")
 		if err := store.Insert(ctx, ev); err != nil {
@@ -209,7 +210,7 @@ func outboxStatsBacklog(ctx context.Context, store *outbox.PG) func(*testing.T) 
 
 func mustNewEvent(t *testing.T, typ string) outbox.Event {
 	t.Helper()
-	ev, err := outbox.NewEvent(typ, "test-topic", "test.key", "application/json", []byte(`{"v":1}`), nil)
+	ev, err := outbox.NewEvent(typ, "test-topic", "application/json", []byte(`{"v":1}`), nil)
 	if err != nil {
 		t.Fatalf("new event: %v", err)
 	}
@@ -225,7 +226,7 @@ func findEvent(evs []outbox.Event, id uuid.UUID) *outbox.Event {
 	return nil
 }
 
-func statusOf(t *testing.T, db *sqlx.DB, id uuid.UUID) string {
+func statusOf(t *testing.T, db *dbx.DB, id uuid.UUID) string {
 	t.Helper()
 	var status string
 	if err := db.GetContext(context.Background(), &status,
@@ -258,15 +259,15 @@ func ensureSDKSchemas(ctx context.Context, t *testing.T, cfg config.ServerOpts) 
 
 // openTestDB opens a pool against the test database. Shared by the outbox and
 // broker integration tests.
-func openTestDB(t *testing.T, cfg config.ServerOpts) *sqlx.DB {
+func openTestDB(t *testing.T, cfg config.ServerOpts) *dbx.DB {
 	t.Helper()
 	return openTracedDB(t, cfg, nil)
 }
 
 // openTracedDB opens the test database with its queries recorded on tp.
-func openTracedDB(t *testing.T, cfg config.ServerOpts, tp trace.TracerProvider) *sqlx.DB {
+func openTracedDB(t *testing.T, cfg config.ServerOpts, tp trace.TracerProvider) *dbx.DB {
 	t.Helper()
-	db, err := dbx.Open(dbx.Config{
+	db, err := pg.Open(pg.Config{
 		User: cfg.DB.User, Password: cfg.DB.Password, Host: cfg.DB.Host,
 		Name: cfg.DB.Name, Schema: cfg.DB.Schema,
 		DisableTLS: true, MaxIdleConns: 4, MaxOpenConns: 10,

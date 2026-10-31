@@ -183,7 +183,7 @@ func (a *App) initConsumers(ctx context.Context) error {
 	consumer, err := rabbitmq.NewConsumer(a.d.BrokerConn(ctx), a.d.Logger, rabbitmq.ConsumerConfig{
 		Queue:       a.opts.Broker.Queue,
 		Exchange:    a.opts.Broker.Exchange,
-		RoutingKeys: []string{a.opts.Broker.RoutingKey},
+		RoutingKeys: []string{widget.EventWidgetCreated},
 		Name:        name,
 	}, h)
 	if err != nil {

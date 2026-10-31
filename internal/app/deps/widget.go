@@ -30,8 +30,7 @@ var initWidgetCore = func(c *Deps) (dim.CleanupFunc, error) {
 		if c.Opts.Broker.Enabled() {
 			reg := outbox.NewRegistry()
 			if err := reg.Register[widget.Created](
-				widget.EventWidgetCreated, c.Opts.Broker.Exchange,
-				outbox.WithKey(c.Opts.Broker.RoutingKey)); err != nil {
+				widget.EventWidgetCreated, c.Opts.Broker.Exchange); err != nil {
 				return nil, fmt.Errorf("register widget.created route: %w", err)
 			}
 			opts = append(opts, widget.WithOutbox(c.DB(ctx), c.Outbox(ctx), reg))

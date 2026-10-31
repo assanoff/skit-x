@@ -74,12 +74,16 @@ func TestUserCRUD(t *testing.T) {
 	is.Equal(resp.StatusCode, http.StatusConflict)
 	_ = resp.Body.Close()
 
-	// Delete -> 204, then 404.
+	// Delete -> 204, then 404 on read and on a second delete.
 	resp = doReq(t, srv, http.MethodDelete, "/users/"+id, "")
 	is.Equal(resp.StatusCode, http.StatusNoContent)
 	_ = resp.Body.Close()
 
 	resp = doReq(t, srv, http.MethodGet, "/users/"+id, "")
+	is.Equal(resp.StatusCode, http.StatusNotFound)
+	_ = resp.Body.Close()
+
+	resp = doReq(t, srv, http.MethodDelete, "/users/"+id, "")
 	is.Equal(resp.StatusCode, http.StatusNotFound)
 	_ = resp.Body.Close()
 }

@@ -116,6 +116,9 @@ func (c *Core) Update(ctx context.Context, id uuid.UUID, uu UpdateUser) (User, e
 	u.UpdatedAt = time.Now().UTC()
 
 	if err := c.store.Update(ctx, u); err != nil {
+		if errors.Is(err, dbx.ErrDBNotFound) {
+			return User{}, c.notFound(id)
+		}
 		return User{}, c.writeErr(err, u.Email)
 	}
 	return u, nil

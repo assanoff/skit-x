@@ -51,12 +51,16 @@ func TestProductCRUD(t *testing.T) {
 	is.Equal(updated["price"], float64(3999)) // update applied
 	is.Equal(updated["name"], "Keyboard")     // name preserved
 
-	// Delete -> 204, then 404.
+	// Delete -> 204, then 404 on read and on a second delete.
 	resp = doReq(t, srv, http.MethodDelete, "/products/"+id, "")
 	is.Equal(resp.StatusCode, http.StatusNoContent)
 	_ = resp.Body.Close()
 
 	resp = doReq(t, srv, http.MethodGet, "/products/"+id, "")
+	is.Equal(resp.StatusCode, http.StatusNotFound)
+	_ = resp.Body.Close()
+
+	resp = doReq(t, srv, http.MethodDelete, "/products/"+id, "")
 	is.Equal(resp.StatusCode, http.StatusNotFound)
 	_ = resp.Body.Close()
 }

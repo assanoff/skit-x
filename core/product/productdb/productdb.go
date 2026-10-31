@@ -12,8 +12,6 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/jmoiron/sqlx"
-
 	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/order"
 	"github.com/assanoff/skit/page"
@@ -24,11 +22,11 @@ import (
 // Store implements product.Store against Postgres.
 type Store struct {
 	log *slog.Logger
-	db  *sqlx.DB
+	db  *dbx.DB
 }
 
 // NewStore builds a Store over the connection pool.
-func NewStore(log *slog.Logger, db *sqlx.DB) *Store {
+func NewStore(log *slog.Logger, db *dbx.DB) *Store {
 	return &Store{log: log, db: db}
 }
 
@@ -40,7 +38,7 @@ func (s *Store) Create(ctx context.Context, p product.Product) error {
 	const q = `
 		INSERT INTO products (id, name, price, created_at, updated_at)
 		VALUES (:id, :name, :price, :created_at, :updated_at)`
-	if err := dbx.NamedExecContext(ctx, s.log, s.db, q, toDBProduct(p)); err != nil {
+	if err := dbx.NamedExec(ctx, s.db, q, toDBProduct(p)); err != nil {
 		return fmt.Errorf("create: %w", err)
 	}
 	return nil
@@ -52,8 +50,12 @@ func (s *Store) Update(ctx context.Context, p product.Product) error {
 		UPDATE products
 		SET name = :name, price = :price, updated_at = :updated_at
 		WHERE id = :id`
-	if err := dbx.NamedExecContext(ctx, s.log, s.db, q, toDBProduct(p)); err != nil {
+	n, err := dbx.NamedExecRowsAffected(ctx, s.db, q, toDBProduct(p))
+	if err != nil {
 		return fmt.Errorf("update: %w", err)
+	}
+	if n == 0 {
+		return fmt.Errorf("update: %w", dbx.ErrDBNotFound)
 	}
 	return nil
 }
@@ -64,8 +66,12 @@ func (s *Store) Delete(ctx context.Context, id uuid.UUID) error {
 	data := struct {
 		ID string `db:"id"`
 	}{ID: id.String()}
-	if err := dbx.NamedExecContext(ctx, s.log, s.db, q, data); err != nil {
+	n, err := dbx.NamedExecRowsAffected(ctx, s.db, q, data)
+	if err != nil {
 		return fmt.Errorf("delete: %w", err)
+	}
+	if n == 0 {
+		return fmt.Errorf("delete: %w", dbx.ErrDBNotFound)
 	}
 	return nil
 }
@@ -77,8 +83,8 @@ func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (product.Product, e
 		ID string `db:"id"`
 	}{ID: id.String()}
 
-	var row dbProduct
-	if err := dbx.NamedQueryStruct(ctx, s.log, s.db, q, data, &row); err != nil {
+	row, err := dbx.NamedQueryOne[dbProduct](ctx, s.db, q, data)
+	if err != nil {
 		return product.Product{}, fmt.Errorf("querybyid: %w", err)
 	}
 	return toCoreProduct(row), nil
@@ -91,13 +97,11 @@ func (s *Store) Count(ctx context.Context, filter product.QueryFilter) (int, err
 	buf := bytes.NewBufferString(`SELECT count(*) AS n FROM products`)
 	s.applyFilter(filter, data, buf)
 
-	var row struct {
-		N int `db:"n"`
-	}
-	if err := dbx.NamedQueryStruct(ctx, s.log, s.db, buf.String(), data, &row); err != nil {
+	n, err := dbx.NamedQueryOne[int](ctx, s.db, buf.String(), data)
+	if err != nil {
 		return 0, fmt.Errorf("count: %w", err)
 	}
-	return row.N, nil
+	return n, nil
 }
 
 // Query implements product.Store: one filtered, ordered page. The WHERE is built
@@ -119,8 +123,8 @@ func (s *Store) Query(ctx context.Context, filter product.QueryFilter, by order.
 	buf.WriteString(clause)
 	buf.WriteString(" OFFSET :offset ROWS FETCH NEXT :rows_per_page ROWS ONLY")
 
-	var rows []dbProduct
-	if err := dbx.NamedQuerySlice(ctx, s.log, s.db, buf.String(), data, &rows); err != nil {
+	rows, err := dbx.NamedQueryList[dbProduct](ctx, s.db, buf.String(), data)
+	if err != nil {
 		return nil, fmt.Errorf("query: %w", err)
 	}
 	return toCoreProducts(rows), nil
@@ -145,9 +149,9 @@ func (s *Store) QueryByCursor(ctx context.Context, filter product.QueryFilter, c
 	// filter conditions, then append the boundary, then write them as one WHERE.
 	wc := s.whereConditions(filter, data)
 	if key != "" {
-		ts, id, err := decodeProductCursor(key)
-		if err != nil {
-			return nil, "", fmt.Errorf("querybycursor: %w", err)
+		ts, id, decodeErr := decodeProductCursor(key)
+		if decodeErr != nil {
+			return nil, "", fmt.Errorf("querybycursor: %w", decodeErr)
 		}
 		data["after_ts"] = ts
 		data["after_id"] = id
@@ -162,8 +166,8 @@ func (s *Store) QueryByCursor(ctx context.Context, filter product.QueryFilter, c
 	writeWhere(buf, wc)
 	buf.WriteString(` ORDER BY created_at DESC, id DESC LIMIT :limit`)
 
-	var rows []dbProduct
-	if err := dbx.NamedQuerySlice(ctx, s.log, s.db, buf.String(), data, &rows); err != nil {
+	rows, err := dbx.NamedQueryList[dbProduct](ctx, s.db, buf.String(), data)
+	if err != nil {
 		return nil, "", fmt.Errorf("querybycursor: %w", err)
 	}
 

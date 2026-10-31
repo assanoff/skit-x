@@ -12,8 +12,6 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/jmoiron/sqlx"
-
 	"github.com/assanoff/skit/auditlog/auditbus"
 	"github.com/assanoff/skit/auth"
 	"github.com/assanoff/skit/dbx"
@@ -29,7 +27,7 @@ import (
 // yields a sibling bound to a transaction so a write can commit atomically with
 // an outbox event (see Create).
 type Store interface {
-	WithTx(tx sqlx.ExtContext) Store
+	WithTx(tx dbx.Querier) Store
 	Create(ctx context.Context, w Widget) error
 	Update(ctx context.Context, w Widget) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -47,7 +45,7 @@ type Core struct {
 	// Optional transactional-outbox wiring. When set, Create persists the widget
 	// and a widget.created event in one transaction. When nil, Create just writes
 	// the widget (no event) — so the example runs without a broker too.
-	db     *sqlx.DB
+	db     *dbx.DB
 	outbox outbox.Store
 	reg    *outbox.Registry
 
@@ -63,10 +61,10 @@ type Core struct {
 type Option func(*Core)
 
 // WithOutbox enables transactional event publishing: Create writes the widget
-// and a widget.created event atomically via outbox.WithinTran. The event's
-// transport route (topic/key) is resolved from reg, registered at startup — the
-// domain code names neither an exchange nor a routing key.
-func WithOutbox(db *sqlx.DB, store outbox.Store, reg *outbox.Registry) Option {
+// and a widget.created event atomically via outbox.WithinTran. The event's type
+// and topic are resolved from reg, registered at startup — the domain code
+// names neither an exchange nor a routing key.
+func WithOutbox(db *dbx.DB, store outbox.Store, reg *outbox.Registry) Option {
 	return func(c *Core) {
 		c.db = db
 		c.outbox = store
@@ -152,7 +150,7 @@ func (c *Core) insert(ctx context.Context, w Widget) error {
 	// The domain emits a plain typed event; it knows nothing about the
 	// transaction's mechanics or the transport. pub records it in the same
 	// transaction as the widget write, so both commit (or roll back) together.
-	return outbox.WithinTran(ctx, c.log, c.db, c.outbox, c.reg, func(tx *sqlx.Tx, pub outbox.Publisher) error {
+	return outbox.WithinTran(ctx, c.log, c.db, c.outbox, c.reg, func(tx *dbx.Tx, pub outbox.Publisher) error {
 		if err := c.store.WithTx(tx).Create(ctx, w); err != nil {
 			return err
 		}
@@ -170,9 +168,7 @@ func (c *Core) QueryByID(ctx context.Context, id uuid.UUID) (Widget, error) {
 	w, err := c.store.QueryByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, dbx.ErrDBNotFound) {
-			return Widget{}, errs.Newf(errs.NotFound, "widget %s not found", id).
-				WithMessageID("widget.not_found").
-				WithArgs(map[string]any{"id": id.String()})
+			return Widget{}, c.notFound(id)
 		}
 		return Widget{}, errs.New(errs.Internal, err)
 	}
@@ -217,6 +213,9 @@ func (c *Core) Update(ctx context.Context, id uuid.UUID, uw UpdateWidget) (Widge
 	w.UpdatedAt = time.Now().UTC()
 
 	if err := c.store.Update(ctx, w); err != nil {
+		if errors.Is(err, dbx.ErrDBNotFound) {
+			return Widget{}, c.notFound(id)
+		}
 		return Widget{}, errs.New(errs.Internal, err)
 	}
 	c.publishAudit(ctx, w)
@@ -261,11 +260,16 @@ func auditActor(ctx context.Context) string {
 func (c *Core) Delete(ctx context.Context, id uuid.UUID) error {
 	if err := c.store.Delete(ctx, id); err != nil {
 		if errors.Is(err, dbx.ErrDBNotFound) {
-			return errs.Newf(errs.NotFound, "widget %s not found", id).
-				WithMessageID("widget.not_found").
-				WithArgs(map[string]any{"id": id.String()})
+			return c.notFound(id)
 		}
 		return errs.New(errs.Internal, err)
 	}
 	return nil
+}
+
+// notFound builds the canonical not-found error for id.
+func (c *Core) notFound(id uuid.UUID) error {
+	return errs.Newf(errs.NotFound, "widget %s not found", id).
+		WithMessageID("widget.not_found").
+		WithArgs(map[string]any{"id": id.String()})
 }

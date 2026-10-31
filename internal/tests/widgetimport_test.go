@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/assanoff/skit/dbx"
+	"github.com/assanoff/skit/dbx/pg"
 	"github.com/assanoff/skit/page"
 	"github.com/assanoff/skit/queue"
 	"github.com/assanoff/skit/worker"
@@ -49,7 +49,7 @@ func TestWidgetImportEndpoint(t *testing.T) {
 
 	// Exactly one task is sitting in the queue (Handler builds deps but does not
 	// run the worker, so nothing drains it here).
-	db, err := dbx.Open(dbx.Config{
+	db, err := pg.Open(pg.Config{
 		User: cfg.DB.User, Password: cfg.DB.Password, Host: cfg.DB.Host,
 		Name: cfg.DB.Name, Schema: cfg.DB.Schema, DisableTLS: true,
 		MaxIdleConns: 2, MaxOpenConns: 5,
@@ -81,7 +81,7 @@ func TestWidgetImportQueue(t *testing.T) {
 	ctx := context.Background()
 	cfg := startPostgres(ctx, t)
 
-	db, err := dbx.Open(dbx.Config{
+	db, err := pg.Open(pg.Config{
 		User: cfg.DB.User, Password: cfg.DB.Password, Host: cfg.DB.Host,
 		Name: cfg.DB.Name, Schema: cfg.DB.Schema, DisableTLS: true,
 		MaxIdleConns: 4, MaxOpenConns: 10,

@@ -33,9 +33,8 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	}
 
 	const (
-		exchange   = "skit.widgets.test"
-		routingKey = "widget.created"
-		queue      = "skit.widget-audit.test"
+		exchange = "skit.widgets.test"
+		queue    = "skit.widget-audit.test"
 	)
 
 	ctx := context.Background()
@@ -65,7 +64,7 @@ func TestWidgetOutboxE2E(t *testing.T) {
 
 	store := outbox.NewPG(log, db, outbox.Options{})
 	reg := outbox.NewRegistry()
-	if err := reg.Register[widget.Created](widget.EventWidgetCreated, exchange, outbox.WithKey(routingKey)); err != nil {
+	if err := reg.Register[widget.Created](widget.EventWidgetCreated, exchange); err != nil {
 		t.Fatalf("register route: %v", err)
 	}
 	wstore := widgetdb.NewStore(log, db)
@@ -80,7 +79,7 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	consumer, err := rabbitmq.NewConsumer(conn, log, rabbitmq.ConsumerConfig{
 		Queue:       queue,
 		Exchange:    exchange,
-		RoutingKeys: []string{routingKey},
+		RoutingKeys: []string{widget.EventWidgetCreated},
 		Name:        "widget-audit-test",
 	}, handler)
 	if err != nil {

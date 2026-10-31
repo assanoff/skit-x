@@ -12,8 +12,6 @@ import (
 	"log/slog"
 	"uuid"
 
-	"github.com/jmoiron/sqlx"
-
 	"github.com/assanoff/skit/broker"
 	"github.com/assanoff/skit/dbx"
 )
@@ -21,11 +19,11 @@ import (
 // Recorder persists received events to the audit log.
 type Recorder struct {
 	log *slog.Logger
-	db  *sqlx.DB
+	db  *dbx.DB
 }
 
 // New builds a Recorder.
-func New(log *slog.Logger, db *sqlx.DB) *Recorder {
+func New(log *slog.Logger, db *dbx.DB) *Recorder {
 	return &Recorder{log: log, db: db}
 }
 
@@ -51,7 +49,7 @@ func (r *Recorder) Handle(ctx context.Context, m broker.Message) broker.Action {
 		Payload []byte   `db:"payload"`
 	}{EventID: dbx.UUID(id), Type: m.Type, Payload: m.Data}
 
-	if err := dbx.NamedExecContext(ctx, r.log, r.db, q, arg); err != nil {
+	if err := dbx.NamedExec(ctx, r.db, q, arg); err != nil {
 		r.log.ErrorContext(ctx, "widgetaudit: record failed, requeueing", "event_id", id, "err", err)
 		return broker.Requeue
 	}

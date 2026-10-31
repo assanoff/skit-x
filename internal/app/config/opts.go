@@ -111,14 +111,13 @@ type Worker struct {
 // flag. When off, widget.Create skips event publishing and no relay/consumer
 // runs.
 type Broker struct {
-	User       string `long:"user"        env:"USER"        default:"guest"            description:"rabbitmq user"        json:"-"`
-	Password   string `long:"password"    env:"PASSWORD"    default:"guest"            description:"rabbitmq password"    json:"-"`
-	Host       string `long:"host"        env:"HOST"                                    description:"rabbitmq host (empty disables the broker)"`
-	Port       string `long:"port"        env:"PORT"        default:"5672"             description:"rabbitmq port"`
-	Source     string `long:"source"      env:"SOURCE"      default:"skit-example" description:"CloudEvents source"`
-	Exchange   string `long:"exchange"    env:"EXCHANGE"    default:"skit.widgets" description:"widget events exchange"`
-	RoutingKey string `long:"routing-key" env:"ROUTING_KEY" default:"widget.created"   description:"widget.created routing key"`
-	Queue      string `long:"queue"       env:"QUEUE"       default:"skit.widget-audit" description:"consumer queue"`
+	User     string `long:"user"        env:"USER"        default:"guest"            description:"rabbitmq user"        json:"-"`
+	Password string `long:"password"    env:"PASSWORD"    default:"guest"            description:"rabbitmq password"    json:"-"`
+	Host     string `long:"host"        env:"HOST"                                    description:"rabbitmq host (empty disables the broker)"`
+	Port     string `long:"port"        env:"PORT"        default:"5672"             description:"rabbitmq port"`
+	Source   string `long:"source"      env:"SOURCE"      default:"skit-example" description:"CloudEvents source"`
+	Exchange string `long:"exchange"    env:"EXCHANGE"    default:"skit.widgets" description:"widget events exchange"`
+	Queue    string `long:"queue"       env:"QUEUE"       default:"skit.widget-audit" description:"consumer queue"`
 }
 
 // Auth holds JWT authentication settings for widget write endpoints. Auth is on

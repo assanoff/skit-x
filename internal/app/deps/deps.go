@@ -7,7 +7,6 @@ package deps
 import (
 	"log/slog"
 
-	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/assanoff/skit/app"
@@ -15,6 +14,7 @@ import (
 	"github.com/assanoff/skit/auth"
 	"github.com/assanoff/skit/broker"
 	"github.com/assanoff/skit/broker/rabbitmq"
+	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/dim"
 	"github.com/assanoff/skit/eventbus"
 	"github.com/assanoff/skit/i18n"
@@ -47,7 +47,7 @@ type Deps struct {
 	// to the Config of every component that records spans.
 	TracerProvider trace.TracerProvider
 
-	DB          dim.Provider[*sqlx.DB]
+	DB          dim.Provider[*dbx.DB]
 	Queue       dim.Provider[*queue.PG]
 	BrokerConn  dim.Provider[*rabbitmq.Conn]
 	Publisher   dim.Provider[broker.Publisher]

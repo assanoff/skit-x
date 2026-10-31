@@ -113,6 +113,9 @@ func (c *Core) Update(ctx context.Context, id uuid.UUID, up UpdateProduct) (Prod
 	p.UpdatedAt = time.Now().UTC()
 
 	if err := c.store.Update(ctx, p); err != nil {
+		if errors.Is(err, dbx.ErrDBNotFound) {
+			return Product{}, c.notFound(id)
+		}
 		return Product{}, errs.New(errs.Internal, err)
 	}
 	return p, nil
