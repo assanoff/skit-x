@@ -20,6 +20,16 @@ type createStore struct {
 
 func (createStore) Create(context.Context, widget.Widget) error { return nil }
 
+// WithinTranEvents runs fn over the store itself with a publisher that drops
+// the events.
+func (s createStore) WithinTranEvents(_ context.Context, fn func(r widget.Repo, pub widget.Publisher) error) error {
+	return fn(s, nopPublisher{})
+}
+
+type nopPublisher struct{}
+
+func (nopPublisher) Publish(context.Context, any) error { return nil }
+
 func TestCreateCountsWidgets(t *testing.T) {
 	is := is.New(t)
 	reg := prometheus.NewRegistry()

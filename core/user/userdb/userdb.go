@@ -7,6 +7,7 @@ package userdb
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -23,12 +24,13 @@ import (
 // Store implements user.Store against Postgres.
 type Store struct {
 	log *slog.Logger
-	db  *dbx.DB
+	db  dbx.Querier
 }
 
-// NewStore builds a Store over the connection pool.
-func NewStore(log *slog.Logger, db *dbx.DB) *Store {
-	return &Store{log: log, db: db}
+// NewStore builds a Store over q: the pool (*dbx.DB), or a transaction
+// (*dbx.Tx) to join it.
+func NewStore(log *slog.Logger, q dbx.Querier) *Store {
+	return &Store{log: log, db: q}
 }
 
 // Compile-time check that Store satisfies the domain contract.
@@ -39,7 +41,11 @@ func (s *Store) Create(ctx context.Context, u user.User) error {
 	const q = `
 		INSERT INTO users (id, email, name, created_at, updated_at)
 		VALUES (:id, :email, :name, :created_at, :updated_at)`
-	if err := dbx.NamedExec(ctx, s.db, q, toDBUser(u)); err != nil {
+	err := dbx.NamedExec(ctx, s.db, q, toDBUser(u))
+	if errors.Is(err, dbx.ErrDBDuplicatedEntry) {
+		return fmt.Errorf("create: %w: %w", user.ErrAlreadyExists, err)
+	}
+	if err != nil {
 		return fmt.Errorf("create: %w", err)
 	}
 	return nil
@@ -52,11 +58,14 @@ func (s *Store) Update(ctx context.Context, u user.User) error {
 		SET email = :email, name = :name, updated_at = :updated_at
 		WHERE id = :id`
 	n, err := dbx.NamedExecRowsAffected(ctx, s.db, q, toDBUser(u))
+	if errors.Is(err, dbx.ErrDBDuplicatedEntry) {
+		return fmt.Errorf("update: %w: %w", user.ErrAlreadyExists, err)
+	}
 	if err != nil {
 		return fmt.Errorf("update: %w", err)
 	}
 	if n == 0 {
-		return fmt.Errorf("update: %w", dbx.ErrDBNotFound)
+		return fmt.Errorf("update: %w", user.ErrNotFound)
 	}
 	return nil
 }
@@ -72,7 +81,7 @@ func (s *Store) Delete(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("delete: %w", err)
 	}
 	if n == 0 {
-		return fmt.Errorf("delete: %w", dbx.ErrDBNotFound)
+		return fmt.Errorf("delete: %w", user.ErrNotFound)
 	}
 	return nil
 }
@@ -85,6 +94,9 @@ func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (user.User, error) 
 	}{ID: id.String()}
 
 	row, err := dbx.NamedQueryOne[dbUser](ctx, s.db, q, data)
+	if errors.Is(err, dbx.ErrDBNotFound) {
+		return user.User{}, fmt.Errorf("querybyid: %w", user.ErrNotFound)
+	}
 	if err != nil {
 		return user.User{}, fmt.Errorf("querybyid: %w", err)
 	}

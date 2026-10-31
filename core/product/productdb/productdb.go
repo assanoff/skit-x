@@ -6,6 +6,7 @@ package productdb
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -22,12 +23,13 @@ import (
 // Store implements product.Store against Postgres.
 type Store struct {
 	log *slog.Logger
-	db  *dbx.DB
+	db  dbx.Querier
 }
 
-// NewStore builds a Store over the connection pool.
-func NewStore(log *slog.Logger, db *dbx.DB) *Store {
-	return &Store{log: log, db: db}
+// NewStore builds a Store over q: the pool (*dbx.DB), or a transaction
+// (*dbx.Tx) to join it.
+func NewStore(log *slog.Logger, q dbx.Querier) *Store {
+	return &Store{log: log, db: q}
 }
 
 // Compile-time check that Store satisfies the domain contract.
@@ -55,7 +57,7 @@ func (s *Store) Update(ctx context.Context, p product.Product) error {
 		return fmt.Errorf("update: %w", err)
 	}
 	if n == 0 {
-		return fmt.Errorf("update: %w", dbx.ErrDBNotFound)
+		return fmt.Errorf("update: %w", product.ErrNotFound)
 	}
 	return nil
 }
@@ -71,7 +73,7 @@ func (s *Store) Delete(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("delete: %w", err)
 	}
 	if n == 0 {
-		return fmt.Errorf("delete: %w", dbx.ErrDBNotFound)
+		return fmt.Errorf("delete: %w", product.ErrNotFound)
 	}
 	return nil
 }
@@ -84,6 +86,9 @@ func (s *Store) QueryByID(ctx context.Context, id uuid.UUID) (product.Product, e
 	}{ID: id.String()}
 
 	row, err := dbx.NamedQueryOne[dbProduct](ctx, s.db, q, data)
+	if errors.Is(err, dbx.ErrDBNotFound) {
+		return product.Product{}, fmt.Errorf("querybyid: %w", product.ErrNotFound)
+	}
 	if err != nil {
 		return product.Product{}, fmt.Errorf("querybyid: %w", err)
 	}

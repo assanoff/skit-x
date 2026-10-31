@@ -14,20 +14,22 @@ import (
 
 	"github.com/assanoff/skit/auditlog/auditbus"
 	"github.com/assanoff/skit/auth"
-	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/errs"
 	"github.com/assanoff/skit/eventbus"
 	"github.com/assanoff/skit/order"
-	"github.com/assanoff/skit/outbox"
 	"github.com/assanoff/skit/page"
 )
 
-// Store is the persistence contract for widgets. The Core depends on this
-// interface; concrete implementations (e.g. widgetdb) live elsewhere. WithTx
-// yields a sibling bound to a transaction so a write can commit atomically with
-// an outbox event (see Create).
-type Store interface {
-	WithTx(tx dbx.Querier) Store
+// Errors the store returns: a get, update or delete of a missing widget, and a
+// create that collides with an existing one. The domain never sees the dbx
+// errors.
+var (
+	ErrNotFound      = errors.New("widget not found")
+	ErrAlreadyExists = errors.New("widget already exists")
+)
+
+// Repo is CRUD over widgets. The callback of a transaction gets it too.
+type Repo interface {
 	Create(ctx context.Context, w Widget) error
 	Update(ctx context.Context, w Widget) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -37,21 +39,39 @@ type Store interface {
 	Count(ctx context.Context, filter QueryFilter) (int, error)
 }
 
+// Publisher writes an event in the transaction of the callback. It is declared
+// here so the domain does not import outbox.
+type Publisher interface {
+	Publish(ctx context.Context, event any) error
+}
+
+// Store is the persistence contract for widgets: CRUD and transactions. The
+// Core depends on this interface; the implementation (widgetdb) lives
+// elsewhere.
+//
+// fn may run more than once (a retry after a deadlock): inside it use only r
+// and pub, keep no state between runs and do not call the Store. A Store built
+// over another transaction joins it and does not commit.
+type Store interface {
+	Repo
+
+	// WithinTran runs fn in one transaction; r is bound to it.
+	WithinTran(ctx context.Context, fn func(r Repo) error) error
+
+	// WithinTranEvents is WithinTran plus pub, which writes events into the
+	// outbox in the same transaction. Without events wired into the store it
+	// drops them — so the example runs without a broker too.
+	WithinTranEvents(ctx context.Context, fn func(r Repo, pub Publisher) error) error
+}
+
 // Core implements the widget business logic.
 type Core struct {
 	log   *slog.Logger
 	store Store
 
-	// Optional transactional-outbox wiring. When set, Create persists the widget
-	// and a widget.created event in one transaction. When nil, Create just writes
-	// the widget (no event) — so the example runs without a broker too.
-	db     *dbx.DB
-	outbox outbox.Store
-	reg    *outbox.Registry
-
 	// Optional in-process event bus. When set, Create dispatches a synchronous,
 	// best-effort widget.created event after the write (the in-process complement
-	// to the durable outbox above). nil disables in-process dispatch.
+	// to the durable outbox event). nil disables in-process dispatch.
 	bus *eventbus.Bus
 
 	m metrics
@@ -60,24 +80,12 @@ type Core struct {
 // Option customizes a Core.
 type Option func(*Core)
 
-// WithOutbox enables transactional event publishing: Create writes the widget
-// and a widget.created event atomically via outbox.WithinTran. The event's type
-// and topic are resolved from reg, registered at startup — the domain code
-// names neither an exchange nor a routing key.
-func WithOutbox(db *dbx.DB, store outbox.Store, reg *outbox.Registry) Option {
-	return func(c *Core) {
-		c.db = db
-		c.outbox = store
-		c.reg = reg
-	}
-}
-
 // WithEventBus enables in-process event dispatch: after a widget is created,
 // Create publishes a (widget, created) event on the bus for any registered
 // in-process consumers (e.g. a webhook notifier). Dispatch is synchronous and
 // best-effort — a consumer's failure is logged by the bus but does not roll back
-// the write or fail the request. This is independent of WithOutbox: a Core may
-// use neither, either, or both.
+// the write or fail the request. This is independent of the outbox event of
+// the store: a Core may use neither, either, or both.
 func WithEventBus(bus *eventbus.Bus) Option {
 	return func(c *Core) { c.bus = bus }
 }
@@ -91,9 +99,9 @@ func NewCore(log *slog.Logger, store Store, opts ...Option) *Core {
 	return c
 }
 
-// Create validates and persists a new widget. With outbox wiring it also emits
-// a widget.created event in the same transaction (transactional outbox); without
-// it, the widget is written directly.
+// Create validates and persists a new widget and emits a widget.created event
+// in the same transaction (transactional outbox). The store decides where the
+// event goes: into the outbox when the broker is on, nowhere when it is off.
 func (c *Core) Create(ctx context.Context, nw NewWidget) (Widget, error) {
 	now := time.Now().UTC()
 	w := Widget{
@@ -105,7 +113,7 @@ func (c *Core) Create(ctx context.Context, nw NewWidget) (Widget, error) {
 	}
 
 	if err := c.insert(ctx, w); err != nil {
-		if errors.Is(err, dbx.ErrDBDuplicatedEntry) {
+		if errors.Is(err, ErrAlreadyExists) {
 			return Widget{}, errs.Newf(errs.AlreadyExists, "widget %q already exists", nw.Name).
 				WithMessageID("widget.already_exists").
 				WithArgs(map[string]any{"name": nw.Name})
@@ -141,17 +149,14 @@ func (c *Core) Count(ctx context.Context, filter QueryFilter) (int, error) {
 	return n, nil
 }
 
-// insert writes the widget. With WithOutbox it also records a widget.created
-// event in the same transaction (transactional outbox).
+// insert writes the widget and records a widget.created event in the same
+// transaction (transactional outbox).
 func (c *Core) insert(ctx context.Context, w Widget) error {
-	if c.outbox == nil {
-		return c.store.Create(ctx, w)
-	}
 	// The domain emits a plain typed event; it knows nothing about the
 	// transaction's mechanics or the transport. pub records it in the same
 	// transaction as the widget write, so both commit (or roll back) together.
-	return outbox.WithinTran(ctx, c.log, c.db, c.outbox, c.reg, func(tx *dbx.Tx, pub outbox.Publisher) error {
-		if err := c.store.WithTx(tx).Create(ctx, w); err != nil {
+	return c.store.WithinTranEvents(ctx, func(r Repo, pub Publisher) error {
+		if err := r.Create(ctx, w); err != nil {
 			return err
 		}
 		return pub.Publish(ctx, Created{
@@ -167,7 +172,7 @@ func (c *Core) insert(ctx context.Context, w Widget) error {
 func (c *Core) QueryByID(ctx context.Context, id uuid.UUID) (Widget, error) {
 	w, err := c.store.QueryByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, dbx.ErrDBNotFound) {
+		if errors.Is(err, ErrNotFound) {
 			return Widget{}, c.notFound(id)
 		}
 		return Widget{}, errs.New(errs.Internal, err)
@@ -213,7 +218,7 @@ func (c *Core) Update(ctx context.Context, id uuid.UUID, uw UpdateWidget) (Widge
 	w.UpdatedAt = time.Now().UTC()
 
 	if err := c.store.Update(ctx, w); err != nil {
-		if errors.Is(err, dbx.ErrDBNotFound) {
+		if errors.Is(err, ErrNotFound) {
 			return Widget{}, c.notFound(id)
 		}
 		return Widget{}, errs.New(errs.Internal, err)
@@ -259,7 +264,7 @@ func auditActor(ctx context.Context) string {
 // Delete removes a widget.
 func (c *Core) Delete(ctx context.Context, id uuid.UUID) error {
 	if err := c.store.Delete(ctx, id); err != nil {
-		if errors.Is(err, dbx.ErrDBNotFound) {
+		if errors.Is(err, ErrNotFound) {
 			return c.notFound(id)
 		}
 		return errs.New(errs.Internal, err)

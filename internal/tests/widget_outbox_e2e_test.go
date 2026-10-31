@@ -15,6 +15,7 @@ import (
 
 	"github.com/assanoff/skit/broker"
 	"github.com/assanoff/skit/broker/rabbitmq"
+	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/outbox"
 	"github.com/assanoff/skit/worker"
 
@@ -67,8 +68,10 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	if err := reg.Register[widget.Created](widget.EventWidgetCreated, exchange); err != nil {
 		t.Fatalf("register route: %v", err)
 	}
-	wstore := widgetdb.NewStore(log, db)
-	core := widget.NewCore(log, wstore, widget.WithOutbox(db, store, reg))
+	events := func(tx *dbx.Tx) *outbox.Publisher {
+		return outbox.Bind(tx, store, reg)
+	}
+	core := widget.NewCore(log, widgetdb.NewStore(log, db, widgetdb.WithEvents(events)))
 
 	recorder := widgetaudit.New(log, db)
 	handler := broker.Instrument(recorder.Handle, broker.InstrumentConfig{

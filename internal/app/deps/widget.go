@@ -2,11 +2,9 @@ package deps
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/assanoff/skit/dim"
-	"github.com/assanoff/skit/outbox"
 	"github.com/assanoff/skit/poller"
 
 	widgetapi "github.com/assanoff/skit-x/api/widget"
@@ -16,25 +14,16 @@ import (
 	"github.com/assanoff/skit-x/internal/app/handlers/widgetgrpc"
 )
 
-// initWidgetCore builds the widget business core over the Postgres store. When
-// the broker is enabled, Create also emits a widget.created event through the
-// transactional outbox (atomic with the widget insert). The event's transport
-// route is registered here at startup — the domain only emits a typed value.
+// initWidgetCore builds the widget business core over the Postgres store. Its
+// widget.created event goes into the transactional outbox (atomic with the
+// widget insert) when the broker is enabled, and is dropped when it is not
+// (c.Events); the route is registered with the outbox Registry.
 var initWidgetCore = func(c *Deps) (dim.CleanupFunc, error) {
 	c.WidgetCore = dim.OnceWithName("WidgetCore", func(ctx context.Context) (*widget.Core, error) {
-		store := widgetdb.NewStore(c.Logger, c.DB(ctx))
+		store := widgetdb.NewStore(c.Logger, c.DB(ctx), widgetdb.WithEvents(c.Events(ctx)))
 
-		// In-process dispatch is always on (a bus with no consumers is a no-op);
-		// the durable outbox is added only when the broker is enabled.
+		// In-process dispatch is always on (a bus with no consumers is a no-op).
 		opts := []widget.Option{widget.WithEventBus(c.Bus(ctx)), widget.WithMetrics(c.Metrics)}
-		if c.Opts.Broker.Enabled() {
-			reg := outbox.NewRegistry()
-			if err := reg.Register[widget.Created](
-				widget.EventWidgetCreated, c.Opts.Broker.Exchange); err != nil {
-				return nil, fmt.Errorf("register widget.created route: %w", err)
-			}
-			opts = append(opts, widget.WithOutbox(c.DB(ctx), c.Outbox(ctx), reg))
-		}
 		return widget.NewCore(c.Logger, store, opts...), nil
 	})
 	return nil, nil

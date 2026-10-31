@@ -12,10 +12,17 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/errs"
 	"github.com/assanoff/skit/order"
 	"github.com/assanoff/skit/page"
+)
+
+// Errors the store returns: a get, update or delete of a missing user, and
+// a write that collides with an existing one. The domain never sees the dbx
+// errors.
+var (
+	ErrNotFound      = errors.New("user not found")
+	ErrAlreadyExists = errors.New("user already exists")
 )
 
 // Store is the persistence contract for users. The Core depends on this
@@ -62,7 +69,7 @@ func (c *Core) Create(ctx context.Context, nu NewUser) (User, error) {
 func (c *Core) QueryByID(ctx context.Context, id uuid.UUID) (User, error) {
 	u, err := c.store.QueryByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, dbx.ErrDBNotFound) {
+		if errors.Is(err, ErrNotFound) {
 			return User{}, c.notFound(id)
 		}
 		return User{}, errs.New(errs.Internal, err)
@@ -116,7 +123,7 @@ func (c *Core) Update(ctx context.Context, id uuid.UUID, uu UpdateUser) (User, e
 	u.UpdatedAt = time.Now().UTC()
 
 	if err := c.store.Update(ctx, u); err != nil {
-		if errors.Is(err, dbx.ErrDBNotFound) {
+		if errors.Is(err, ErrNotFound) {
 			return User{}, c.notFound(id)
 		}
 		return User{}, c.writeErr(err, u.Email)
@@ -127,7 +134,7 @@ func (c *Core) Update(ctx context.Context, id uuid.UUID, uu UpdateUser) (User, e
 // Delete removes a user.
 func (c *Core) Delete(ctx context.Context, id uuid.UUID) error {
 	if err := c.store.Delete(ctx, id); err != nil {
-		if errors.Is(err, dbx.ErrDBNotFound) {
+		if errors.Is(err, ErrNotFound) {
 			return c.notFound(id)
 		}
 		return errs.New(errs.Internal, err)
@@ -137,7 +144,7 @@ func (c *Core) Delete(ctx context.Context, id uuid.UUID) error {
 
 // writeErr maps a store write error to the right domain error.
 func (c *Core) writeErr(err error, email string) error {
-	if errors.Is(err, dbx.ErrDBDuplicatedEntry) {
+	if errors.Is(err, ErrAlreadyExists) {
 		return errs.Newf(errs.AlreadyExists, "user %q already exists", email).
 			WithMessageID("user.already_exists").
 			WithArgs(map[string]any{"email": email})

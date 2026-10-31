@@ -11,11 +11,14 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/errs"
 	"github.com/assanoff/skit/order"
 	"github.com/assanoff/skit/page"
 )
+
+// ErrNotFound is what the store returns for a get, update or delete of a
+// missing product. The domain never sees the dbx errors.
+var ErrNotFound = errors.New("product not found")
 
 // Store is the persistence contract for products.
 type Store interface {
@@ -59,7 +62,7 @@ func (c *Core) Create(ctx context.Context, np NewProduct) (Product, error) {
 func (c *Core) QueryByID(ctx context.Context, id uuid.UUID) (Product, error) {
 	p, err := c.store.QueryByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, dbx.ErrDBNotFound) {
+		if errors.Is(err, ErrNotFound) {
 			return Product{}, c.notFound(id)
 		}
 		return Product{}, errs.New(errs.Internal, err)
@@ -113,7 +116,7 @@ func (c *Core) Update(ctx context.Context, id uuid.UUID, up UpdateProduct) (Prod
 	p.UpdatedAt = time.Now().UTC()
 
 	if err := c.store.Update(ctx, p); err != nil {
-		if errors.Is(err, dbx.ErrDBNotFound) {
+		if errors.Is(err, ErrNotFound) {
 			return Product{}, c.notFound(id)
 		}
 		return Product{}, errs.New(errs.Internal, err)
@@ -124,7 +127,7 @@ func (c *Core) Update(ctx context.Context, id uuid.UUID, up UpdateProduct) (Prod
 // Delete removes a product.
 func (c *Core) Delete(ctx context.Context, id uuid.UUID) error {
 	if err := c.store.Delete(ctx, id); err != nil {
-		if errors.Is(err, dbx.ErrDBNotFound) {
+		if errors.Is(err, ErrNotFound) {
 			return c.notFound(id)
 		}
 		return errs.New(errs.Internal, err)

@@ -52,6 +52,7 @@ type Deps struct {
 	BrokerConn  dim.Provider[*rabbitmq.Conn]
 	Publisher   dim.Provider[broker.Publisher]
 	Outbox      dim.Provider[*outbox.PG]
+	Registry    dim.Provider[*outbox.Registry]
 	Translator  dim.Provider[*i18n.Translator]
 	Translation dim.Provider[*translation.Translator]
 	Verifier    dim.Provider[auth.Verifier]
