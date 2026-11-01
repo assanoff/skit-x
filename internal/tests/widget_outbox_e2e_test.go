@@ -17,6 +17,7 @@ import (
 	"github.com/assanoff/skit/broker/rabbitmq"
 	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/outbox"
+	"github.com/assanoff/skit/queue"
 	"github.com/assanoff/skit/worker"
 
 	"github.com/assanoff/skit-x/core/widget"
@@ -25,17 +26,18 @@ import (
 )
 
 // TestWidgetOutboxE2E exercises the full reliable publish->consume pipeline
-// against real Postgres + RabbitMQ: creating a widget atomically writes a
-// widget.created outbox event; the Relay publishes it to RabbitMQ; the
-// widgetaudit consumer receives it and records an audit row.
+// against real Postgres + RabbitMQ: creating a widget atomically schedules a
+// widget.created event into the queue of events; its workers publish it to
+// RabbitMQ; the widgetaudit consumer receives it and records an audit row.
 func TestWidgetOutboxE2E(t *testing.T) {
 	if testing.Short() {
 		t.Skip("integration test requires docker")
 	}
 
 	const (
-		exchange = "skit.widgets.test"
-		queue    = "skit.widget-audit.test"
+		exchange   = "skit.widgets.test"
+		auditQueue = "skit.widget-audit.test"
+		events     = "events"
 	)
 
 	ctx := context.Background()
@@ -43,7 +45,7 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	log := slog.New(slog.DiscardHandler)
 
 	// Tracing: an in-memory span recorder so we can assert the consumer
-	// continues the producer's trace through the outbox/broker.
+	// continues the producer's trace through the queue of events and the broker.
 	spans := tracetest.NewSpanRecorder()
 	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(spans))
 	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
@@ -63,15 +65,16 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = pub.Close() })
 
-	store := outbox.NewPG(log, db, outbox.Options{})
-	reg := outbox.NewRegistry()
-	if err := reg.Register[widget.Created](widget.EventWidgetCreated, exchange); err != nil {
-		t.Fatalf("register route: %v", err)
+	q := queue.NewPG(log, db)
+	reg := queue.NewRegistry()
+	enc := queue.WithEncoder(outbox.Envelope())
+	if err := reg.Register[widget.Created](events, widget.EventWidgetCreated, enc); err != nil {
+		t.Fatalf("route widget.created: %v", err)
 	}
-	events := func(tx *dbx.Tx) *outbox.Publisher {
-		return outbox.Bind(tx, store, reg)
+	tasks := func(tx *dbx.Tx) *queue.Scheduler {
+		return queue.Bind(tx, q, reg)
 	}
-	core := widget.NewCore(log, widgetdb.NewStore(log, db, widgetdb.WithEvents(events)))
+	core := widget.NewCore(log, widgetdb.NewStore(log, db, widgetdb.WithTasks(tasks)))
 
 	recorder := widgetaudit.New(log, db)
 	handler := broker.Instrument(recorder.Handle, broker.InstrumentConfig{
@@ -80,7 +83,7 @@ func TestWidgetOutboxE2E(t *testing.T) {
 		TracerProvider: tp,
 	})
 	consumer, err := rabbitmq.NewConsumer(conn, log, rabbitmq.ConsumerConfig{
-		Queue:       queue,
+		Queue:       auditQueue,
 		Exchange:    exchange,
 		RoutingKeys: []string{widget.EventWidgetCreated},
 		Name:        "widget-audit-test",
@@ -89,16 +92,26 @@ func TestWidgetOutboxE2E(t *testing.T) {
 		t.Fatalf("new consumer: %v", err)
 	}
 
-	relay := outbox.NewRelay(log, store, pub, outbox.RelayConfig{
-		PollInterval:   200 * time.Millisecond,
-		PublishTimeout: 3 * time.Second,
-	})
+	mux := queue.NewMux()
+	if err := mux.Register(widget.EventWidgetCreated, outbox.Handler(pub, exchange)); err != nil {
+		t.Fatalf("publish widget.created: %v", err)
+	}
+	if err := reg.Check(events, mux); err != nil {
+		t.Fatalf("check routes: %v", err)
+	}
+	qcfg := outbox.Config(events)
+	qcfg.Poll = 200 * time.Millisecond
+	qcfg.Timeout = 3 * time.Second
+	publishers, err := queue.Workers(log, q, qcfg, mux.Handle)
+	if err != nil {
+		t.Fatalf("event workers: %v", err)
+	}
 
-	// Supervise the consumer and relay together.
+	// Supervise the consumer and the workers of the queue of events together.
 	runCtx, cancel := context.WithCancel(ctx)
 	group := worker.NewGroup(log, worker.GroupConfig{ShutdownTimeout: 3 * time.Second})
 	group.Add(consumer)
-	group.Add(relay)
+	group.Add(publishers...)
 	groupDone := make(chan error, 1)
 	go func() { groupDone <- group.Run(runCtx) }()
 	t.Cleanup(func() { cancel(); <-groupDone })
@@ -107,8 +120,8 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	time.Sleep(time.Second)
 
 	// Create a widget under a producer span — this writes the widget row and a
-	// widget.created outbox event in one transaction; the event captures this
-	// span's W3C trace context into its headers.
+	// widget.created event task in one transaction; the envelope of the event
+	// captures this span's W3C trace context.
 	prodCtx, prodSpan := tracer.Start(ctx, "test.create-widget")
 	w, err := core.Create(prodCtx, widget.NewWidget{Name: "e2e-gadget", Description: "from outbox"})
 	prodSpan.End()
@@ -144,20 +157,19 @@ func TestWidgetOutboxE2E(t *testing.T) {
 		t.Errorf("audit payload mismatch: got %+v, want id=%s name=e2e-gadget", payload, w.ID)
 	}
 
-	// The outbox row reaches its terminal sent state. The relay marks it sent
-	// after a successful publish, which can land just after the consumer recorded
-	// the audit row above, so poll rather than read once.
-	var status string
-	sent := eventually(10*time.Second, 200*time.Millisecond, func() bool {
-		if err := db.GetContext(ctx, &status,
-			`SELECT status FROM outbox_events WHERE type = $1 ORDER BY created_at DESC LIMIT 1`,
-			widget.EventWidgetCreated); err != nil {
-			t.Fatalf("query outbox status: %v", err)
+	// The event task is removed once published. The worker removes it after a
+	// successful publish, which can land just after the consumer recorded the
+	// audit row above, so poll rather than read once.
+	var left int
+	removed := eventually(10*time.Second, 200*time.Millisecond, func() bool {
+		if err := db.GetContext(ctx, &left,
+			`SELECT count(*) FROM queue_tasks WHERE queue = $1`, events); err != nil {
+			t.Fatalf("query event tasks: %v", err)
 		}
-		return status == outbox.StatusSent
+		return left == 0
 	})
-	if !sent {
-		t.Errorf("outbox status = %q, want sent", status)
+	if !removed {
+		t.Errorf("event tasks left = %d, want 0", left)
 	}
 
 	assertQueriesTraced(t, spans, prodSpan.SpanContext())
@@ -165,8 +177,8 @@ func TestWidgetOutboxE2E(t *testing.T) {
 }
 
 // assertQueriesTraced checks that the transaction of the producer — the widget
-// row and its outbox event — is recorded as query spans under the producer
-// span, BEGIN and COMMIT included.
+// row and its event task — is recorded as query spans under the producer span,
+// BEGIN and COMMIT included.
 func assertQueriesTraced(t *testing.T, spans *tracetest.SpanRecorder, prod trace.SpanContext) {
 	t.Helper()
 	var texts []string
@@ -180,7 +192,7 @@ func assertQueriesTraced(t *testing.T, spans *tracetest.SpanRecorder, prod trace
 			}
 		}
 	}
-	want := []string{"begin", "INSERT INTO widgets", "INSERT INTO outbox_events", "commit"}
+	want := []string{"begin", "INSERT INTO widgets", "INSERT INTO queue_tasks", "commit"}
 	if len(texts) != len(want) {
 		t.Fatalf("queries under the producer span = %q, want %q", texts, want)
 	}
@@ -191,10 +203,10 @@ func assertQueriesTraced(t *testing.T, spans *tracetest.SpanRecorder, prod trace
 	}
 }
 
-// assertTraceContinued checks that the relay sent the event under a CLIENT
+// assertTraceContinued checks that the event was sent under a CLIENT
 // span and the consumer handled it under a CONSUMER span, both children of the
 // producer span (same trace id, parent = producer), so the trace flows
-// producer -> outbox -> broker -> consumer; the consumer span also links the
+// producer -> queue of events -> broker -> consumer; the consumer span also links the
 // producer. The spans end in defers that may land just after the audit row
 // commits, so it polls for them.
 func assertTraceContinued(t *testing.T, spans *tracetest.SpanRecorder, exchange string, prod trace.SpanContext) {

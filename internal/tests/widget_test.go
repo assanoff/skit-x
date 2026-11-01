@@ -121,7 +121,7 @@ func newTestServer(ctx context.Context, t *testing.T) (*httptest.Server, config.
 // startPostgres launches a Postgres container, runs migrations via the SDK's
 // dbtest helper, and returns an app config pointing at it. Shared by the REST
 // and gRPC integration tests. The app's migrations cover only its own domain
-// tables; the SDK-owned tables (queue/outbox/auditlog/translation) are
+// tables; the SDK-owned tables (queue/auditlog/translation) are
 // provisioned via EnsureSchema (see ensureSDKSchemas), exactly as the app does
 // at startup.
 func startPostgres(ctx context.Context, t *testing.T) config.ServerOpts {

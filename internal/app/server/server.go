@@ -25,6 +25,7 @@ import (
 	"github.com/assanoff/skit/metrics"
 	"github.com/assanoff/skit/middleware"
 	"github.com/assanoff/skit/outbox"
+	"github.com/assanoff/skit/queue"
 	"github.com/assanoff/skit/rest"
 	"github.com/assanoff/skit/worker"
 
@@ -111,8 +112,8 @@ func (a *App) Components() Components {
 }
 
 // initWorkers registers the background work: the domain loops with the queue
-// backlog and — when the broker is enabled — the transactional-outbox workers
-// (relay, sweeper, cleaner) that poll the database.
+// backlog and — when the broker is enabled — the workers of the queue of
+// events, which publish the events scheduled with the domain writes.
 //
 // Run it as a single replica: these loops poll the same rows, so extra replicas
 // only add database load (and any wall-clock job would fire twice).
@@ -144,22 +145,26 @@ func (a *App) initWorkers(ctx context.Context) error {
 		return nil
 	}
 
-	// The outbox workers record their skit_outbox_* metrics on the process
-	// registry, next to the HTTP/gRPC and business metrics; NewBacklog reads
-	// the backlog gauges from the outbox table.
-	ob := a.d.Outbox(ctx)
-	a.workers = append(a.workers,
-		outbox.NewRelay(a.d.Logger, ob, a.d.Publisher(ctx), outbox.RelayConfig{Metrics: a.d.Metrics}),
-		outbox.NewSweeper(a.d.Logger, ob, outbox.SweeperConfig{Metrics: a.d.Metrics}),
-		outbox.NewCleaner(a.d.Logger, ob, outbox.CleanerConfig{Metrics: a.d.Metrics}),
-		outbox.NewBacklog(a.d.Logger, ob, a.d.Metrics),
-	)
+	// The workers of the queue of events record skit_queue_*{queue="events"}
+	// and skit_worker_* on the process registry, next to the HTTP/gRPC and
+	// business metrics. An event routed there with no handler would go to the
+	// dead letters, so the routes are checked first.
+	events := a.d.Events(ctx)
+	if err := a.d.Registry(ctx).Check(deps.EventsQueue, events); err != nil {
+		return err
+	}
+	workers, err := queue.Workers(a.d.Logger, a.d.Queue(ctx), outbox.Config(deps.EventsQueue),
+		events.Handle, queue.WithMetrics(a.d.Metrics))
+	if err != nil {
+		return err
+	}
+	a.workers = append(a.workers, workers...)
 	return nil
 }
 
 // initConsumers registers the queue consumers — the receiving half of the
-// reliable publish->consume pipeline whose sending half (the outbox workers)
-// belongs to initWorkers. Competing consumers, so more than one replica is safe.
+// reliable publish->consume pipeline whose sending half (the workers of the
+// queue of events) belongs to initWorkers. Competing consumers, so more than one replica is safe.
 func (a *App) initConsumers(ctx context.Context) error {
 	if !a.opts.Broker.Enabled() {
 		return nil

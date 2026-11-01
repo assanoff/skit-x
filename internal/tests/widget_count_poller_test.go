@@ -9,7 +9,6 @@ import (
 	"github.com/assanoff/skit/poller"
 
 	"github.com/assanoff/skit-x/core/widget"
-	"github.com/assanoff/skit-x/core/widget/widgetdb"
 )
 
 // TestWidgetCountPoller exercises the poller demo: a poller caches the widget
@@ -25,7 +24,7 @@ func TestWidgetCountPoller(t *testing.T) {
 	db := openTestDB(t, cfg)
 	log := slog.New(slog.DiscardHandler)
 
-	store := widgetdb.NewStore(log, db)
+	store := widgetStore(t, log, db)
 	core := widget.NewCore(log, store)
 
 	// Count takes a filter; the poller caches the unfiltered total, so it passes

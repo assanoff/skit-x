@@ -19,7 +19,6 @@ import (
 	"github.com/assanoff/skit/eventbus"
 	"github.com/assanoff/skit/i18n"
 	"github.com/assanoff/skit/metrics"
-	"github.com/assanoff/skit/outbox"
 	"github.com/assanoff/skit/poller"
 	"github.com/assanoff/skit/queue"
 	"github.com/assanoff/skit/translation"
@@ -47,12 +46,18 @@ type Deps struct {
 	// to the Config of every component that records spans.
 	TracerProvider trace.TracerProvider
 
-	DB          dim.Provider[*dbx.DB]
-	Queue       dim.Provider[*queue.PG]
-	BrokerConn  dim.Provider[*rabbitmq.Conn]
-	Publisher   dim.Provider[broker.Publisher]
-	Outbox      dim.Provider[*outbox.PG]
-	Registry    dim.Provider[*outbox.Registry]
+	DB dim.Provider[*dbx.DB]
+	// Queue holds every queue of the service, the queue of events included.
+	Queue dim.Provider[*queue.PG]
+	// Registry routes the Go type of a scheduled value to its queue and kind.
+	Registry dim.Provider[*queue.Registry]
+
+	BrokerConn dim.Provider[*rabbitmq.Conn]
+	Publisher  dim.Provider[broker.Publisher]
+	// Events is the Mux of the queue of events: the handler of each event
+	// publishes it. Nil while the broker is off.
+	Events dim.Provider[*queue.Mux]
+
 	Translator  dim.Provider[*i18n.Translator]
 	Translation dim.Provider[*translation.Translator]
 	Verifier    dim.Provider[auth.Verifier]

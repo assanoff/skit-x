@@ -106,10 +106,10 @@ type Worker struct {
 	CountInterval time.Duration `long:"count-interval" env:"COUNT_INTERVAL" default:"5s" description:"widget-count poller refresh interval"`
 }
 
-// Broker holds RabbitMQ + transactional-outbox settings. The broker is on iff
-// Host is non-empty, so an empty BROKER_HOST turns it off without a separate
-// flag. When off, widget.Create skips event publishing and no relay/consumer
-// runs.
+// Broker holds the RabbitMQ settings of the events. The broker is on iff Host
+// is non-empty, so an empty BROKER_HOST turns it off without a separate flag.
+// When off, the route of widget.created drops the event and no event worker or
+// consumer runs.
 type Broker struct {
 	User     string `long:"user"        env:"USER"        default:"guest"            description:"rabbitmq user"        json:"-"`
 	Password string `long:"password"    env:"PASSWORD"    default:"guest"            description:"rabbitmq password"    json:"-"`
@@ -135,7 +135,7 @@ type Auth struct {
 // iff URL is non-empty, so an empty WEBHOOK_URL turns it off without a separate
 // flag. When on, an in-process eventbus consumer POSTs each created widget to
 // URL using a resilient HTTP client that retries 429/503 with backoff (httpmw).
-// It is independent of the broker/outbox.
+// It is independent of the broker and the queue of events.
 type Webhook struct {
 	URL         string        `long:"url"          env:"URL"          default:""      description:"webhook endpoint receiving widget.created notifications (empty disables the webhook)"`
 	Timeout     time.Duration `long:"timeout"      env:"TIMEOUT"      default:"3s"    description:"per-attempt timeout for webhook delivery"`

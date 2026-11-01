@@ -16,8 +16,8 @@ import (
 
 	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/order"
-	"github.com/assanoff/skit/outbox"
 	"github.com/assanoff/skit/page"
+	"github.com/assanoff/skit/queue"
 
 	"github.com/assanoff/skit-x/core/widget"
 )
@@ -38,10 +38,10 @@ func (r *repo) withTx(tx *dbx.Tx) *repo {
 // Option configures a Store.
 type Option func(*Store)
 
-// WithEvents turns events on: WithinTranEvents hands fn the publisher fn(tx)
-// bound to the transaction. Without it the events are dropped.
-func WithEvents(fn func(tx *dbx.Tx) *outbox.Publisher) Option {
-	return func(s *Store) { s.events = fn }
+// WithTasks turns tasks on: WithinTranTasks hands fn the scheduler fn(tx)
+// bound to the transaction. Without it Schedule fails.
+func WithTasks(fn func(tx *dbx.Tx) *queue.Scheduler) Option {
+	return func(s *Store) { s.tasks = fn }
 }
 
 // Store implements widget.Store against Postgres. Over a pool its WithinTran
@@ -49,13 +49,13 @@ func WithEvents(fn func(tx *dbx.Tx) *outbox.Publisher) Option {
 type Store struct {
 	*repo
 
-	events func(tx *dbx.Tx) *outbox.Publisher
+	tasks func(tx *dbx.Tx) *queue.Scheduler
 }
 
 // NewStore builds a Store over q: a pool (*dbx.DB) or a transaction
 // (*dbx.Tx). The same constructor binds the store to a transaction.
 func NewStore(log *slog.Logger, q dbx.Querier, opts ...Option) *Store {
-	s := &Store{repo: &repo{log: log, q: q}, events: discardEvents}
+	s := &Store{repo: &repo{log: log, q: q}}
 	for _, o := range opts {
 		o(s)
 	}
@@ -72,16 +72,30 @@ func (s *Store) WithinTran(ctx context.Context, fn func(r widget.Repo) error) er
 	})
 }
 
-// WithinTranEvents implements widget.Store.
-func (s *Store) WithinTranEvents(ctx context.Context, fn func(r widget.Repo, pub widget.Publisher) error) error {
+// WithinTranTasks implements widget.Store.
+func (s *Store) WithinTranTasks(ctx context.Context, fn func(r widget.Repo, ts widget.Scheduler) error) error {
 	return dbx.WithinTran(ctx, s.log, s.q, func(tx *dbx.Tx) error {
-		return fn(s.withTx(tx), s.events(tx))
+		return fn(s.withTx(tx), s.scheduler(tx))
 	})
 }
 
-// discardEvents is the store without events: the write goes through, the event
-// is dropped.
-func discardEvents(*dbx.Tx) *outbox.Publisher { return outbox.Discard() }
+// scheduler returns the Scheduler bound to tx, or noTasks for a store built
+// without WithTasks.
+func (s *Store) scheduler(tx *dbx.Tx) widget.Scheduler {
+	if s.tasks == nil {
+		return noTasks{}
+	}
+	return s.tasks(tx)
+}
+
+// errNoTasks is the error of Schedule on a store built without WithTasks.
+var errNoTasks = errors.New("widgetdb: schedule: the store has no tasks (WithTasks)")
+
+// noTasks is the Scheduler of a store built without WithTasks: Schedule
+// fails, so no task is lost in silence.
+type noTasks struct{}
+
+func (noTasks) Schedule(context.Context, any) error { return errNoTasks }
 
 // Create implements widget.Repo.
 func (r *repo) Create(ctx context.Context, w widget.Widget) error {

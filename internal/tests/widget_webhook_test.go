@@ -17,7 +17,6 @@ import (
 	"github.com/assanoff/skit/retry"
 
 	"github.com/assanoff/skit-x/core/widget"
-	"github.com/assanoff/skit-x/core/widget/widgetdb"
 	"github.com/assanoff/skit-x/core/widgetwebhook"
 )
 
@@ -70,7 +69,7 @@ func TestWidgetWebhookHTTPMW(t *testing.T) {
 	bus := eventbus.New(log)
 	widgetwebhook.New(log, client, srv.URL).Register(bus)
 
-	store := widgetdb.NewStore(log, db)
+	store := widgetStore(t, log, db)
 	core := widget.NewCore(log, store, widget.WithEventBus(bus))
 
 	w, err := core.Create(ctx, widget.NewWidget{Name: "hooked", Description: "via eventbus"})

@@ -39,10 +39,11 @@ type Repo interface {
 	Count(ctx context.Context, filter QueryFilter) (int, error)
 }
 
-// Publisher writes an event in the transaction of the callback. It is declared
-// here so the domain does not import outbox.
-type Publisher interface {
-	Publish(ctx context.Context, event any) error
+// Scheduler schedules a task — an event, any work after the commit — in the
+// transaction of the callback. It is declared here so the domain does not
+// import queue.
+type Scheduler interface {
+	Schedule(ctx context.Context, v any) error
 }
 
 // Store is the persistence contract for widgets: CRUD and transactions. The
@@ -50,7 +51,7 @@ type Publisher interface {
 // elsewhere.
 //
 // fn may run more than once (a retry after a deadlock): inside it use only r
-// and pub, keep no state between runs and do not call the Store. A Store built
+// and s, keep no state between runs and do not call the Store. A Store built
 // over another transaction joins it and does not commit.
 type Store interface {
 	Repo
@@ -58,10 +59,11 @@ type Store interface {
 	// WithinTran runs fn in one transaction; r is bound to it.
 	WithinTran(ctx context.Context, fn func(r Repo) error) error
 
-	// WithinTranEvents is WithinTran plus pub, which writes events into the
-	// outbox in the same transaction. Without events wired into the store it
-	// drops them — so the example runs without a broker too.
-	WithinTranEvents(ctx context.Context, fn func(r Repo, pub Publisher) error) error
+	// WithinTranTasks is WithinTran plus s, which schedules tasks in the same
+	// transaction. Without tasks wired into the store Schedule fails; with the
+	// broker off the route of an event drops it, so the example runs without a
+	// broker too.
+	WithinTranTasks(ctx context.Context, fn func(r Repo, s Scheduler) error) error
 }
 
 // Core implements the widget business logic.
@@ -99,9 +101,10 @@ func NewCore(log *slog.Logger, store Store, opts ...Option) *Core {
 	return c
 }
 
-// Create validates and persists a new widget and emits a widget.created event
-// in the same transaction (transactional outbox). The store decides where the
-// event goes: into the outbox when the broker is on, nowhere when it is off.
+// Create validates and persists a new widget and schedules a widget.created
+// event in the same transaction (transactional outbox). The wiring decides
+// where the event goes: into the queue of events when the broker is on,
+// nowhere when it is off.
 func (c *Core) Create(ctx context.Context, nw NewWidget) (Widget, error) {
 	now := time.Now().UTC()
 	w := Widget{
@@ -122,7 +125,7 @@ func (c *Core) Create(ctx context.Context, nw NewWidget) (Widget, error) {
 	}
 	c.m.created.Inc()
 
-	// In-process, synchronous, best-effort notification. Unlike the outbox above
+	// In-process, synchronous, best-effort notification. Unlike the event above
 	// (durable, transactional, cross-service), these handlers run now on this
 	// goroutine; their failure is logged by the bus but never fails the create.
 	if c.bus != nil {
@@ -149,17 +152,17 @@ func (c *Core) Count(ctx context.Context, filter QueryFilter) (int, error) {
 	return n, nil
 }
 
-// insert writes the widget and records a widget.created event in the same
+// insert writes the widget and schedules a widget.created event in the same
 // transaction (transactional outbox).
 func (c *Core) insert(ctx context.Context, w Widget) error {
-	// The domain emits a plain typed event; it knows nothing about the
-	// transaction's mechanics or the transport. pub records it in the same
-	// transaction as the widget write, so both commit (or roll back) together.
-	return c.store.WithinTranEvents(ctx, func(r Repo, pub Publisher) error {
+	// The domain schedules a plain typed event; it knows nothing about the
+	// transaction's mechanics, the queue or the transport. s writes it in the
+	// same transaction as the widget, so both commit (or roll back) together.
+	return c.store.WithinTranTasks(ctx, func(r Repo, s Scheduler) error {
 		if err := r.Create(ctx, w); err != nil {
 			return err
 		}
-		return pub.Publish(ctx, Created{
+		return s.Schedule(ctx, Created{
 			ID:          w.ID.String(),
 			Name:        w.Name,
 			Description: w.Description,

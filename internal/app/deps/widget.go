@@ -15,12 +15,12 @@ import (
 )
 
 // initWidgetCore builds the widget business core over the Postgres store. Its
-// widget.created event goes into the transactional outbox (atomic with the
-// widget insert) when the broker is enabled, and is dropped when it is not
-// (c.Events); the route is registered with the outbox Registry.
+// widget.created event goes into the queue of events (atomic with the widget
+// insert) when the broker is enabled, and is dropped when it is not; the route
+// is in the queue Registry (c.Tasks).
 var initWidgetCore = func(c *Deps) (dim.CleanupFunc, error) {
 	c.WidgetCore = dim.OnceWithName("WidgetCore", func(ctx context.Context) (*widget.Core, error) {
-		store := widgetdb.NewStore(c.Logger, c.DB(ctx), widgetdb.WithEvents(c.Events(ctx)))
+		store := widgetdb.NewStore(c.Logger, c.DB(ctx), widgetdb.WithTasks(c.Tasks(ctx)))
 
 		// In-process dispatch is always on (a bus with no consumers is a no-op).
 		opts := []widget.Option{widget.WithEventBus(c.Bus(ctx)), widget.WithMetrics(c.Metrics)}

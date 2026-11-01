@@ -73,9 +73,9 @@ var SortableFields = map[string]string{
 var DefaultOrder = order.NewBy(OrderByCreatedAt, order.DESC)
 
 // Created is the domain event emitted when a widget is created. It is a plain
-// payload type: the domain publishes it through its Publisher, and the outbox
-// Registry (wired at startup) maps it to its transport route with
-// reg.Register[Created](EventWidgetCreated, topic).
+// payload type: the domain schedules it through its Scheduler, and the queue
+// Registry (wired at startup) routes it into the queue of events with
+// reg.Register[Created]("events", EventWidgetCreated, enc).
 type Created struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
