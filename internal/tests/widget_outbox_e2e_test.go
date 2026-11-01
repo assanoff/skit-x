@@ -51,8 +51,7 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	tracer := tp.Tracer("e2e")
 	db := openTracedDB(t, cfg, tp)
 
-	amqpURL := startRabbitMQ(ctx, t)
-	conn, err := rabbitmq.Dial(rabbitmq.Config{URL: amqpURL})
+	conn, err := rabbitmq.Dial(startRabbitMQ(ctx, t))
 	if err != nil {
 		t.Fatalf("dial rabbitmq: %v", err)
 	}
@@ -261,8 +260,8 @@ func endedSpan(spans *tracetest.SpanRecorder, name string) sdktrace.ReadOnlySpan
 	return nil
 }
 
-// startRabbitMQ launches a RabbitMQ container and returns its AMQP URL.
-func startRabbitMQ(ctx context.Context, t *testing.T) string {
+// startRabbitMQ launches a RabbitMQ container and returns the config to dial it.
+func startRabbitMQ(ctx context.Context, t *testing.T) rabbitmq.Config {
 	t.Helper()
 	c, err := tcrabbitmq.Run(ctx, "rabbitmq:3.13-management-alpine")
 	if err != nil {
@@ -270,9 +269,13 @@ func startRabbitMQ(ctx context.Context, t *testing.T) string {
 	}
 	t.Cleanup(func() { _ = c.Terminate(ctx) })
 
-	amqpURL, err := c.AmqpURL(ctx)
+	host, err := c.Host(ctx)
 	if err != nil {
-		t.Fatalf("rabbitmq amqp url: %v", err)
+		t.Fatalf("rabbitmq host: %v", err)
 	}
-	return amqpURL
+	port, err := c.MappedPort(ctx, tcrabbitmq.DefaultAMQPPort)
+	if err != nil {
+		t.Fatalf("rabbitmq port: %v", err)
+	}
+	return rabbitmq.Config{User: c.AdminUsername, Password: c.AdminPassword, Host: host, Port: port.Port()}
 }
