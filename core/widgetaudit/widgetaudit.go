@@ -2,9 +2,9 @@
 // widget.created event it receives into the widget_event_log table, keyed by
 // the CloudEvents id so at-least-once redelivery de-duplicates (ON CONFLICT DO
 // NOTHING). It demonstrates the consumer side of the publish->consume flow.
-// The trace of the producer continues through broker.Instrument, which wraps
-// Handle in the wiring: Handle runs under the consumer span, and its logs carry
-// the trace_id of the request that created the widget.
+// The trace of the producer continues through the RabbitMQ consumer of the
+// wiring: Handle runs under its consumer span, and its logs carry the trace_id
+// of the request that created the widget.
 package widgetaudit
 
 import (
@@ -29,8 +29,8 @@ func New(log *slog.Logger, db *dbx.DB) *Recorder {
 
 // Handle implements broker.Handler: it writes one audit row per event. A
 // malformed id is dropped (Discard) — retrying cannot fix it; a transient DB
-// error requeues so the message is retried. The consumer span of
-// broker.Instrument records either verdict as its error.
+// error requeues so the message is retried. The consumer span records either
+// verdict as its error.
 func (r *Recorder) Handle(ctx context.Context, m broker.Message) broker.Action {
 	id, err := uuid.Parse(m.ID)
 	if err != nil {

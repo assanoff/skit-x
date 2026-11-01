@@ -13,7 +13,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/assanoff/skit/broker"
 	"github.com/assanoff/skit/broker/rabbitmq"
 	"github.com/assanoff/skit/dbx"
 	"github.com/assanoff/skit/outbox"
@@ -77,17 +76,13 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	core := widget.NewCore(log, widgetdb.NewStore(log, db, widgetdb.WithTasks(tasks)))
 
 	recorder := widgetaudit.New(log, db)
-	handler := broker.Instrument(recorder.Handle, broker.InstrumentConfig{
-		Consumer:       "widget-audit-test",
-		System:         "rabbitmq",
+	consumer, err := rabbitmq.NewConsumer(log, conn, rabbitmq.ConsumerConfig{
+		Queue:          auditQueue,
+		Exchange:       exchange,
+		RoutingKeys:    []string{widget.EventWidgetCreated},
+		Name:           "widget-audit-test",
 		TracerProvider: tp,
-	})
-	consumer, err := rabbitmq.NewConsumer(conn, log, rabbitmq.ConsumerConfig{
-		Queue:       auditQueue,
-		Exchange:    exchange,
-		RoutingKeys: []string{widget.EventWidgetCreated},
-		Name:        "widget-audit-test",
-	}, handler)
+	}, recorder.Handle)
 	if err != nil {
 		t.Fatalf("new consumer: %v", err)
 	}

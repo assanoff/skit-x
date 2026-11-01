@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/assanoff/skit/app"
-	"github.com/assanoff/skit/broker"
 	"github.com/assanoff/skit/broker/rabbitmq"
 	"github.com/assanoff/skit/closer"
 	"github.com/assanoff/skit/grpcgateway"
@@ -171,22 +170,17 @@ func (a *App) initConsumers(ctx context.Context) error {
 	}
 
 	recorder := widgetaudit.New(a.d.Logger, a.d.DB(ctx))
-	// Instrument records every message as a consumer span that continues the
+	// The consumer records every message as a consumer span that continues the
 	// trace of the request that created the event, and in skit_broker_* on the
 	// process registry.
-	const name = "widget-audit"
-	h := broker.Instrument(recorder.Handle, broker.InstrumentConfig{
-		Consumer:       name,
-		System:         "rabbitmq",
+	consumer, err := rabbitmq.NewConsumer(a.d.Logger, a.d.BrokerConn(ctx), rabbitmq.ConsumerConfig{
+		Queue:          a.opts.Broker.Queue,
+		Exchange:       a.opts.Broker.Exchange,
+		RoutingKeys:    []string{widget.EventWidgetCreated},
+		Name:           "widget-audit",
 		Metrics:        a.d.Metrics,
 		TracerProvider: a.d.TracerProvider,
-	})
-	consumer, err := rabbitmq.NewConsumer(a.d.BrokerConn(ctx), a.d.Logger, rabbitmq.ConsumerConfig{
-		Queue:       a.opts.Broker.Queue,
-		Exchange:    a.opts.Broker.Exchange,
-		RoutingKeys: []string{widget.EventWidgetCreated},
-		Name:        name,
-	}, h)
+	}, recorder.Handle)
 	if err != nil {
 		return err
 	}
