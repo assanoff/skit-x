@@ -25,7 +25,6 @@ import (
 	"github.com/assanoff/skit/metrics"
 	"github.com/assanoff/skit/middleware"
 	"github.com/assanoff/skit/outbox"
-	"github.com/assanoff/skit/queue"
 	"github.com/assanoff/skit/rest"
 	"github.com/assanoff/skit/worker"
 
@@ -123,9 +122,9 @@ func (a *App) Components() Components {
 // which of its workers start.
 func (a *App) initWorkers(ctx context.Context) error {
 	if !a.opts.Worker.Disabled {
-		// The import loop records skit_queue_* and skit_worker_* on the process
-		// registry; NewBacklog reads the backlog gauges from the queue table.
-		imports, err := a.d.WidgetImport(ctx).NewLoop(widgetimport.Config{
+		// The workers of the import queue record skit_queue_* and
+		// skit_worker_* on the process registry, the backlog gauges included.
+		imports, err := a.d.WidgetImport(ctx).Workers(widgetimport.Config{
 			Interval:  a.opts.Worker.Interval,
 			BatchSize: a.opts.Worker.BatchSize,
 			Metrics:   a.d.Metrics,
@@ -138,11 +137,8 @@ func (a *App) initWorkers(ctx context.Context) error {
 		// the same cache on scrape, so it is registered only where the poller runs.
 		count := a.d.WidgetCount(ctx)
 		widget.CountGauge(a.d.Metrics, count.Current)
-		a.workers = append(a.workers,
-			imports,
-			queue.NewBacklog(a.d.Logger, a.d.Queue(ctx), a.d.Metrics),
-			count,
-		)
+		a.workers = append(a.workers, imports...)
+		a.workers = append(a.workers, count)
 	}
 	if !a.opts.Broker.Enabled() {
 		return nil

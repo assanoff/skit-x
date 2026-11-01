@@ -93,7 +93,7 @@ func TestWidgetImportQueue(t *testing.T) {
 
 	log := slog.New(slog.DiscardHandler)
 	store := widgetdb.NewStore(log, db)
-	q := queue.NewPG(log, db, queue.Options{})
+	q := queue.NewPG(log, db)
 	im := widgetimport.New(log, q, store)
 
 	// Enqueue 20 batches of 5 widgets each = 100 widgets.
@@ -108,16 +108,18 @@ func TestWidgetImportQueue(t *testing.T) {
 		}
 	}
 
-	// Two concurrent processors over the same queue (small batch size so they
-	// genuinely interleave). Supervised by a worker.Group.
+	// The workers of two replicas over the same queue (small batch size so
+	// they genuinely interleave). Supervised by a worker.Group.
 	runCtx, cancel := context.WithCancel(ctx)
 	group := worker.NewGroup(log, worker.GroupConfig{ShutdownTimeout: 2 * time.Second})
 	for range 2 {
-		loop, err := im.NewLoop(widgetimport.Config{Interval: 50 * time.Millisecond, BatchSize: 3})
+		workers, err := im.Workers(widgetimport.Config{Interval: 50 * time.Millisecond, BatchSize: 3})
 		if err != nil {
-			t.Fatalf("new loop: %v", err)
+			t.Fatalf("workers: %v", err)
 		}
-		group.Add(loop)
+		for _, w := range workers {
+			group.Add(w)
+		}
 	}
 
 	groupDone := make(chan error, 1)

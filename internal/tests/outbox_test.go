@@ -251,7 +251,7 @@ func ensureSDKSchemas(ctx context.Context, t *testing.T, cfg config.ServerOpts) 
 			t.Fatalf("ensure %s schema: %v", name, err)
 		}
 	}
-	must("queue", queue.NewPG(log, db, queue.Options{}).EnsureSchema(ctx))
+	must("queue", queue.NewPG(log, db).EnsureSchema(ctx))
 	must("outbox", outbox.NewPG(log, db, outbox.Options{}).EnsureSchema(ctx))
 	must("auditlog", auditpg.NewStore(log, db).EnsureSchema(ctx))
 	must("translation", translationpg.NewStore(log, db).EnsureSchema(ctx))

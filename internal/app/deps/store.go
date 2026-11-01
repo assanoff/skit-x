@@ -33,7 +33,7 @@ var initStore = func(c *Deps) (cleanup dim.CleanupFunc, err error) {
 // (advisory-lock guarded, replica-safe) rather than by a hand-written migration.
 var initQueue = func(c *Deps) (dim.CleanupFunc, error) {
 	c.Queue = dim.OnceWithName("Queue", func(ctx context.Context) (*queue.PG, error) {
-		q := queue.NewPG(c.Logger, c.DB(ctx), queue.Options{})
+		q := queue.NewPG(c.Logger, c.DB(ctx))
 		if err := q.EnsureSchema(ctx); err != nil {
 			return nil, fmt.Errorf("ensure queue schema: %w", err)
 		}

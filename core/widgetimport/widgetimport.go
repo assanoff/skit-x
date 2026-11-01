@@ -1,10 +1,10 @@
 // Package widgetimport is an example business module showing reliable background
 // processing with skit: callers enqueue batch-import jobs onto a durable
-// queue, and a worker.Processor drains the queue, bulk-inserting each batch.
+// queue, and the workers of the queue drain it, bulk-inserting each batch.
 //
-// It ties together three SDK pieces:
-//   - queue:  durable, SKIP LOCKED work queue (safe across replicas);
-//   - worker.Processor: the claim -> handle -> ack/retry loop;
+// It ties together two SDK pieces:
+//   - queue: durable, SKIP LOCKED work queue (safe across replicas) and its
+//     workers, the claim -> handle -> ack/retry loop;
 //   - dbx.BulkInsert: efficient multi-row writes (via widget's store).
 //
 // Delivery is at-least-once, so Handle must be idempotent — the store's
@@ -12,6 +12,7 @@
 package widgetimport
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -28,12 +29,15 @@ import (
 	"github.com/assanoff/skit-x/core/widget"
 )
 
-// Kind is the queue task kind handled by this module.
-const Kind = "widget-import"
+const (
+	// Queue is the queue of the import tasks.
+	Queue = "widget-import"
+	// Kind is the queue task kind handled by this module.
+	Kind = "widget-import"
+)
 
-// ErrBadPayload marks a permanently undecodable task payload. It is classified
-// as terminal so the processor dead-letters the task instead of retrying it
-// forever.
+// ErrBadPayload marks a permanently undecodable task payload. It comes marked
+// queue.Permanent, so the task is dead-lettered instead of retried forever.
 var ErrBadPayload = errors.New("widgetimport: bad payload")
 
 // Store is the persistence contract: a batched, idempotent widget writer.
@@ -45,17 +49,18 @@ type Store interface {
 // Importer enqueues and processes widget-import batches.
 type Importer struct {
 	log   *slog.Logger
-	q     queue.Queue
+	q     *queue.PG
 	store Store
 }
 
 // New builds an Importer over the given durable queue and store.
-func New(log *slog.Logger, q queue.Queue, store Store) *Importer {
+func New(log *slog.Logger, q *queue.PG, store Store) *Importer {
 	return &Importer{log: log, q: q, store: store}
 }
 
 // Schedule enqueues a batch of widgets for import under the dedup key name
-// (pass "" for a one-off). It returns inserted=false when name already exists.
+// (pass "" for a one-off). It returns inserted=false when a task with that key
+// is already in the queue.
 // IDs and timestamps are assigned here, at enqueue time, so replaying the task
 // (at-least-once delivery) inserts the same rows — keeping Handle idempotent.
 func (im *Importer) Schedule(ctx context.Context, name string, news []widget.NewWidget) (bool, error) {
@@ -74,16 +79,16 @@ func (im *Importer) Schedule(ctx context.Context, name string, news []widget.New
 	if err != nil {
 		return false, fmt.Errorf("widgetimport schedule: marshal: %w", err)
 	}
-	return im.q.Schedule(ctx, queue.ScheduleParams{Name: name, Kind: Kind, Payload: payload})
+	return im.q.Schedule(ctx, queue.Params{Queue: Queue, Kind: Kind, Key: name, Payload: payload})
 }
 
 // Handle processes one import task: decode the batch and bulk-insert it. A
-// decode failure is terminal (the payload will never parse); a store failure is
-// returned as-is so the processor retries it.
+// decode failure is permanent (the payload will never parse); a store failure
+// is returned as-is so the queue retries it with backoff.
 func (im *Importer) Handle(ctx context.Context, t queue.Task) error {
 	var ws []widget.Widget
 	if err := json.Unmarshal(t.Payload, &ws); err != nil {
-		return fmt.Errorf("%w: %w", ErrBadPayload, err)
+		return queue.Permanent(fmt.Errorf("%w: %w", ErrBadPayload, err))
 	}
 	if err := im.store.BulkInsert(ctx, ws); err != nil {
 		return fmt.Errorf("widgetimport handle: %w", err)
@@ -91,51 +96,29 @@ func (im *Importer) Handle(ctx context.Context, t queue.Task) error {
 	return nil
 }
 
-// Config tunes the processing loop.
+// Config tunes the workers of the queue.
 type Config struct {
-	// Interval is the queue poll rate (default 1s).
+	// Interval is the wait after a poll that found no task (default 1s).
 	Interval time.Duration
-	// BatchSize is the max tasks leased per tick (default 50).
+	// BatchSize is the max tasks claimed at once (default 50).
 	BatchSize int
-	// Metrics is the registry for the skit_queue_* metrics of the tasks and the
-	// skit_worker_* metrics of the loop; nil — metrics off.
+	// Metrics is the registry for the skit_queue_* metrics of the queue and
+	// the skit_worker_* metrics of its loops; nil — metrics off.
 	Metrics prometheus.Registerer
 }
 
-// NewLoop builds the background worker.Loop that drains the queue. Run several
-// (in one process via worker.Group, or across replicas) for higher throughput —
-// the queue's SKIP LOCKED claim keeps them from colliding. A queue.Mux routes
-// the tasks of Kind to Handle and records them; a task of another kind is
-// dead-lettered.
-func (im *Importer) NewLoop(cfg Config) (*worker.Loop, error) {
-	if cfg.Interval <= 0 {
-		cfg.Interval = time.Second
-	}
-	if cfg.BatchSize <= 0 {
-		cfg.BatchSize = 50
-	}
-	mux := queue.NewMux(queue.WithMetrics(cfg.Metrics))
+// Workers builds the workers of Queue (queue.Workers). Run them on every
+// replica for higher throughput — the queue's SKIP LOCKED claim keeps them
+// from colliding. A queue.Mux routes the tasks of Kind to Handle; a task of
+// another kind is dead-lettered.
+func (im *Importer) Workers(cfg Config) ([]worker.Runnable, error) {
+	mux := queue.NewMux()
 	if err := mux.Register(Kind, im.Handle); err != nil {
-		return nil, fmt.Errorf("widgetimport new loop: %w", err)
+		return nil, fmt.Errorf("widgetimport workers: %w", err)
 	}
-
-	proc := worker.NewProcessor[queue.Task](
-		im.log,
-		im.q, // Source: Claim
-		mux,
-		im.q, // Sink: MarkDone/MarkFailed
-		worker.ProcessorConfig{
-			Name:      Kind,
-			BatchSize: cfg.BatchSize,
-			IsTerminal: func(err error) bool {
-				return errors.Is(err, ErrBadPayload) || errors.Is(err, queue.ErrUnknownKind)
-			},
-		},
-	)
-	return worker.NewLoop(im.log, worker.LoopConfig{
-		Name:               Kind,
-		Interval:           cfg.Interval,
-		ImmediateFirstTick: true,
-		Metrics:            cfg.Metrics,
-	}, proc.Tick()), nil
+	return queue.Workers(im.log, im.q, queue.Config{
+		Queue: Queue,
+		Batch: cmp.Or(cfg.BatchSize, 50),
+		Poll:  cfg.Interval,
+	}, mux.Handle, queue.WithMetrics(cfg.Metrics))
 }
