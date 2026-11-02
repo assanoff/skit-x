@@ -143,6 +143,7 @@ func startPostgres(ctx context.Context, t *testing.T) config.ServerOpts {
 	}
 	cfg.HTTP.RequestTimeout = 10 * time.Second
 	cfg.Translation = config.Translation{DefaultLang: "ru", Supported: "ru,kk"}
+	cfg.Dedup.URI = "mem://"
 
 	ensureSDKSchemas(ctx, t, cfg)
 	return cfg

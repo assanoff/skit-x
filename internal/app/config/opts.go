@@ -34,6 +34,7 @@ type ServerOpts struct {
 	Webhook     Webhook     `group:"webhook" namespace:"webhook" env-namespace:"WEBHOOK"`
 	Audit       Audit       `group:"audit" namespace:"audit" env-namespace:"AUDIT"`
 	Translation Translation `group:"translation" namespace:"translation" env-namespace:"TRANSLATION"`
+	Dedup       Dedup       `group:"dedup" namespace:"dedup" env-namespace:"DEDUP"`
 }
 
 // Validate rejects configurations that are unsafe for the running environment.
@@ -164,6 +165,13 @@ type Audit struct {
 type Translation struct {
 	DefaultLang string `long:"default-lang" env:"DEFAULT_LANG" default:"ru"    description:"default (canonical) language code"`
 	Supported   string `long:"supported"    env:"SUPPORTED"    default:"ru,kk" description:"comma-separated supported language codes"`
+}
+
+// Dedup holds the store of the idempotency keys. URI names it explicitly:
+// mem:// keeps the keys in the process — one replica; redis://host:port/db
+// shares them between the replicas. An unknown or empty URI fails at startup.
+type Dedup struct {
+	URI string `long:"uri" env:"URI" default:"mem://" description:"store of the idempotency keys: mem:// or redis://host:port/db" json:"-"`
 }
 
 // Enabled reports whether the broker is on: its Host is set.

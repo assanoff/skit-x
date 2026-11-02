@@ -30,6 +30,21 @@ services:
       timeout: 5s
       retries: 15
 
+  # The store of the idempotency keys shared between replicas
+  # (DEDUP_URI=redis://localhost:6379/0); the default DEDUP_URI=mem:// keeps
+  # them in each process. noeviction: an evicted key would run its request
+  # again.
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
   # The observability stand (make up-observability): traces in Jaeger, metrics
   # in Prometheus, both in Grafana. The commands run on the host and export to
   # it — see deploy/observability/README.md.

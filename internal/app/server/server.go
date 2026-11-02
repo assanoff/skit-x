@@ -33,6 +33,7 @@ import (
 	"github.com/assanoff/skit-x/core/widgetimport"
 	"github.com/assanoff/skit-x/internal/app/config"
 	"github.com/assanoff/skit-x/internal/app/deps"
+	"github.com/assanoff/skit-x/internal/app/idempotency"
 )
 
 // App is the assembled application: what the process runs, by kind. Every part
@@ -170,6 +171,11 @@ func (a *App) initConsumers(ctx context.Context) error {
 	}
 
 	recorder := widgetaudit.New(a.d.Logger, a.d.DB(ctx))
+	// dedup runs each message once per consumer queue: a redelivery of a
+	// handled message is acked without the handler. Here it shows the wrapper
+	// only — the recorder writes to its own database and is exactly-once by
+	// its ON CONFLICT already.
+	handle := idempotency.Handler(a.d.Dedup(ctx), a.opts.Broker.Queue, recorder.Handle)
 	// The consumer records every message as a consumer span that continues the
 	// trace of the request that created the event, and in skit_broker_* on the
 	// process registry.
@@ -180,7 +186,7 @@ func (a *App) initConsumers(ctx context.Context) error {
 		Name:           "widget-audit",
 		Metrics:        a.d.Metrics,
 		TracerProvider: a.d.TracerProvider,
-	}, recorder.Handle)
+	}, handle)
 	if err != nil {
 		return err
 	}

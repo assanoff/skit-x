@@ -15,6 +15,7 @@ import (
 	"github.com/assanoff/skit/broker"
 	"github.com/assanoff/skit/broker/rabbitmq"
 	"github.com/assanoff/skit/dbx"
+	"github.com/assanoff/skit/dedup"
 	"github.com/assanoff/skit/dim"
 	"github.com/assanoff/skit/eventbus"
 	"github.com/assanoff/skit/i18n"
@@ -63,6 +64,9 @@ type Deps struct {
 	Verifier    dim.Provider[auth.Verifier]
 	Bus         dim.Provider[*eventbus.Bus]
 	AuditLog    dim.Provider[*auditlog.Core]
+	// Dedup runs a POST once per Idempotency-Key and a message once per id
+	// (see internal/app/idempotency).
+	Dedup dim.Provider[*dedup.Keeper]
 
 	WidgetCore    dim.Provider[*widget.Core]
 	WidgetImport  dim.Provider[*widgetimport.Importer]
@@ -91,6 +95,7 @@ var Initializers = []app.Initializer[Deps]{
 	initAuth,
 	initBus,
 	initAuditLog,
+	initDedup,
 
 	// Core business logic
 	initWidgetCore,

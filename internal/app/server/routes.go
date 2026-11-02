@@ -17,6 +17,7 @@ import (
 	"github.com/assanoff/skit/translation/translationrest"
 
 	"github.com/assanoff/skit-x/internal/app/config"
+	"github.com/assanoff/skit-x/internal/app/idempotency"
 	"github.com/assanoff/skit-x/internal/app/reqctx"
 )
 
@@ -79,7 +80,9 @@ func Install(ctx context.Context, a *App, r *router.Router) {
 	// product demonstrates the group level: the whole product group, including
 	// reads, is wrapped once with the guard via WithApp (the typed-layer twin of
 	// With), then handed that group's HandleApp. The feature adds no auth of its own.
-	d.ProductHandler(ctx).Routes(api.WithApp(guard).HandleApp)
+	// Inside the guard, a POST with an Idempotency-Key runs once per key of its
+	// caller, and a retry gets the stored response (dedup).
+	d.ProductHandler(ctx).Routes(api.WithApp(guard, idempotency.HTTP(d.Dedup(ctx))).HandleApp)
 
 	// Audit-log read API (history / diff / changed-fields), mounted in one call.
 	// Reads are public here; pass guard to restrict them to admins if needed.

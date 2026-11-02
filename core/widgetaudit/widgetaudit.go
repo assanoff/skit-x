@@ -2,6 +2,10 @@
 // widget.created event it receives into the widget_event_log table, keyed by
 // the CloudEvents id so at-least-once redelivery de-duplicates (ON CONFLICT DO
 // NOTHING). It demonstrates the consumer side of the publish->consume flow.
+// The ON CONFLICT is what makes it exactly-once: the effect and its mark commit
+// together in one database. The wiring also wraps Handle in dedup
+// (internal/app/idempotency) — only to show that wrapper; a consumer whose
+// effect leaves the database relies on it.
 // The trace of the producer continues through the RabbitMQ consumer of the
 // wiring: Handle runs under its consumer span, and its logs carry the trace_id
 // of the request that created the widget.
