@@ -66,7 +66,7 @@ func (c *Deps) EventRoute() queue.RouteOption {
 	if !c.Opts.Broker.Enabled() {
 		return queue.Drop()
 	}
-	return queue.WithEncoder(outbox.Envelope())
+	return queue.WithEncoder(outbox.JSON)
 }
 
 // Tasks is what a store binds its tasks with (WithTasks): a Scheduler on the

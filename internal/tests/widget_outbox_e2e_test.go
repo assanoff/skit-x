@@ -65,7 +65,7 @@ func TestWidgetOutboxE2E(t *testing.T) {
 
 	q := queue.NewPG(log, db)
 	reg := queue.NewRegistry()
-	enc := queue.WithEncoder(outbox.Envelope())
+	enc := queue.WithEncoder(outbox.JSON)
 	if err := reg.Register[widget.Created](events, widget.EventWidgetCreated, enc); err != nil {
 		t.Fatalf("route widget.created: %v", err)
 	}
