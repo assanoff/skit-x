@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/assanoff/skit/buildinfo"
 	skconfig "github.com/assanoff/skit/config"
 	"github.com/assanoff/skit/logger"
 
@@ -63,7 +64,7 @@ func Execute() int {
 func buildLogger(cfg config.ServerOpts) *slog.Logger {
 	log := logger.New(os.Stdout, logger.Config{
 		Service:   cfg.Service,
-		Version:   version,
+		Version:   buildinfo.Read().Version,
 		Level:     parseLevel(cfg.LogLevel),
 		AddSource: true,
 	})

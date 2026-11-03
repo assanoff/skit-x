@@ -10,6 +10,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/assanoff/skit/buildinfo"
 	"github.com/assanoff/skit/httpserver"
 	"github.com/assanoff/skit/metrics"
 	"github.com/assanoff/skit/rest/router"
@@ -124,6 +125,26 @@ func TestDebugComponents(t *testing.T) {
 	want := Components{Servers: []string{":8080", ":6060"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("components = %+v, want %+v", got, want)
+	}
+}
+
+// GET /version serves the build of the binary, the one buildinfo.Read reports.
+func TestVersion(t *testing.T) {
+	a := newTestApp(t, WithServer(":6060", Info))
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/version", nil)
+	handlerOf(t, a, 0).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	var got buildinfo.Info
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if want := buildinfo.Read(); got.Version != want.Version || got.Go != want.Go {
+		t.Errorf("version = %+v, want %+v", got, want)
 	}
 }
 

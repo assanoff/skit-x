@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/assanoff/skit/app"
+	"github.com/assanoff/skit/buildinfo"
 
 	"github.com/assanoff/skit-x/internal/app/config"
 	"github.com/assanoff/skit-x/internal/app/server"
@@ -16,8 +17,8 @@ import (
 // the process out of them, app.Run supervises it.
 //
 // Every one of them lists a server with server.Debug — /healthz, /readyz,
-// /metrics, /debug/pprof/, /debug/components — which is what keeps the pod
-// probeable and alive until SIGTERM, whatever else it runs.
+// /metrics, /debug/pprof/, /version, /debug/components — which is what keeps
+// the pod probeable and alive until SIGTERM, whatever else it runs.
 func run(cfg config.ServerOpts, options ...server.Option) error {
 	if err := cfg.Validate(); err != nil {
 		return err
@@ -25,16 +26,15 @@ func run(cfg config.ServerOpts, options ...server.Option) error {
 	log := buildLogger(cfg)
 	ctx := context.Background()
 
-	cfg.Version = version
 	a, err := server.New(ctx, cfg, log, options...)
 	if err != nil {
 		return err
 	}
 
-	// What this process runs, as its command composed it. GET /debug/components
-	// serves the same values.
+	// What this process is and runs, as its command composed it. GET /version
+	// and GET /debug/components serve the same values.
 	c := a.Components()
-	log.InfoContext(ctx, "starting service", "env", cfg.Env,
+	log.InfoContext(ctx, "starting service", "env", cfg.Env, "build", buildinfo.Read(),
 		"servers", c.Servers, "workers", c.Workers, "consumers", c.Consumers)
 
 	// app.Run owns the signal context, the worker.Group supervision, and the

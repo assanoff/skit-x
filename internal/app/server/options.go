@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/assanoff/skit/buildinfo"
 	"github.com/assanoff/skit/debugsrv"
 	"github.com/assanoff/skit/health"
 	"github.com/assanoff/skit/httpserver"
@@ -149,9 +150,13 @@ func Pprof(_ context.Context, _ *App, r *router.Router) {
 	r.Handle("/debug/pprof/", debugsrv.Pprof())
 }
 
-// Info is what this process runs: GET /debug/components serves Components —
-// the same values the command logs at startup.
+// Info is what this process is and runs: GET /version serves the build
+// (buildinfo.Read()), GET /debug/components serves Components — the same values
+// the command logs at startup.
 func Info(_ context.Context, a *App, r *router.Router) {
+	r.HandleApp("GET /version", func(context.Context, *http.Request) rest.ResponseEncoder {
+		return rest.JSON(buildinfo.Read())
+	})
 	r.HandleApp("GET /debug/components", func(context.Context, *http.Request) rest.ResponseEncoder {
 		return rest.JSON(a.Components())
 	})

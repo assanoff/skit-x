@@ -19,9 +19,6 @@ type ServerOpts struct {
 	Service  string `long:"service-name" env:"SERVICE_NAME" default:"skit-example" description:"service name"`
 	Env      string `long:"app-env"      env:"APP_ENV"      default:"development"         description:"runtime environment"`
 	LogLevel string `long:"log-level"    env:"LOG_LEVEL"    default:"info"                description:"log level: debug|info|warn|error"`
-	// Version is the build version, set by internal/cmd from its ldflags
-	// variable; it is not a flag.
-	Version string `no-flag:"true"`
 
 	HTTP        HTTP        `group:"http" namespace:"http" env-namespace:"HTTP"`
 	GRPC        GRPC        `group:"grpc" namespace:"grpc" env-namespace:"GRPC"`
@@ -79,10 +76,11 @@ type Gateway struct {
 }
 
 // Debug is where the commands serve the technical routes (server.Debug: health,
-// metrics, pprof, /debug/components) — an internal port of their own. Like the
-// other servers it starts iff Addr is non-empty, so DEBUG_ADDR="" turns it off.
+// metrics, pprof, /version, /debug/components) — an internal port of their
+// own. Like the other servers it starts iff Addr is non-empty, so DEBUG_ADDR=""
+// turns it off.
 type Debug struct {
-	Addr string `long:"addr" env:"ADDR" default:"localhost:6060" description:"technical routes listen address — health, metrics, pprof, components (empty disables it)"`
+	Addr string `long:"addr" env:"ADDR" default:"localhost:6060" description:"technical routes listen address — health, metrics, pprof, version, components (empty disables it)"`
 }
 
 // DB holds Postgres connection settings.

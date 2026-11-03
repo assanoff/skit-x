@@ -40,7 +40,7 @@ jobs:
           VERSION: ${{ github.ref_name }}
         run: |
           mkdir -p dist
-          ldflags="-s -w -X github.com/assanoff/skit-x/internal/cmd.version=${VERSION}"
+          ldflags="-s -w -X github.com/assanoff/skit/buildinfo.version=${VERSION}"
           for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
             os="${target%/*}"; arch="${target#*/}"
             out="dist/skit-x_${VERSION}_${os}_${arch}"

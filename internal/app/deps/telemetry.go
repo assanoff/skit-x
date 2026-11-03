@@ -3,6 +3,7 @@ package deps
 import (
 	"context"
 
+	"github.com/assanoff/skit/buildinfo"
 	"github.com/assanoff/skit/dim"
 	"github.com/assanoff/skit/otel/otlp"
 	"github.com/assanoff/skit/otel/setup"
@@ -24,7 +25,7 @@ var initTelemetry = func(c *Deps) (dim.CleanupFunc, error) {
 	}
 	tel, err := setup.New(ctx, c.Logger, setup.Config{
 		Service:     c.Opts.Service,
-		Version:     c.Opts.Version,
+		Version:     buildinfo.Read().Version,
 		Environment: c.Opts.Env,
 		Exporter:    exp,
 		Metrics:     c.Metrics,

@@ -1,20 +1,20 @@
 package cmd
 
-import "fmt"
+import (
+	"fmt"
 
-// version is the build version. It defaults to "dev" and is stamped at build
-// time via the linker, e.g.
-//
-//	go build -ldflags "-X github.com/assanoff/skit-x/internal/cmd.version=v0.1.0"
-//
-// The Makefile derives it from `git describe`.
-var version = "dev"
+	"github.com/assanoff/skit/buildinfo"
+)
 
-// VersionCommand prints the build version and exits.
+// VersionCommand prints the build and exits: the version, the VCS revision and
+// time, and the Go version. go build stamps them from git; the Makefile and the
+// release workflow stamp the version from the tag as well:
+//
+//	go build -ldflags "-X github.com/assanoff/skit/buildinfo.version=v0.1.0"
 type VersionCommand struct{}
 
 // Execute implements flags.Commander.
 func (VersionCommand) Execute(_ []string) error {
-	fmt.Println(version)
+	fmt.Println(buildinfo.Read())
 	return nil
 }

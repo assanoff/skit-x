@@ -4,10 +4,10 @@ APP         := skit-x
 GO          ?= go
 BIN         := bin/$(APP)
 
-# Version is stamped into the binary (cmd.version) and used by `release`.
+# Version is stamped into the binary (skit/buildinfo.version) and used by `release`.
 # Derived from git: the latest tag, or a short SHA (with -dirty) when untagged.
 VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS     := -X github.com/assanoff/skit-x/internal/cmd.version=$(VERSION)
+LDFLAGS     := -X github.com/assanoff/skit/buildinfo.version=$(VERSION)
 
 # Gate and CI tools are pinned and run via `go run pkg@version`, nothing to
 # install. GOLANGCI matches the golangci-lint version in .github/workflows/ci.yml.
