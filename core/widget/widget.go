@@ -6,7 +6,7 @@ package widget
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"log/slog"
 	"time"
@@ -244,7 +244,7 @@ func (c *Core) publishAudit(ctx context.Context, w Widget) {
 		"description": w.Description,
 		"created_at":  w.CreatedAt,
 		"updated_at":  w.UpdatedAt,
-	})
+	}, json.Deterministic(true))
 	if err != nil {
 		return
 	}

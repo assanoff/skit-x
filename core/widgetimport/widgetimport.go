@@ -14,7 +14,7 @@ package widgetimport
 import (
 	"cmp"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -75,7 +75,7 @@ func (im *Importer) Schedule(ctx context.Context, name string, news []widget.New
 			UpdatedAt:   now,
 		}
 	}
-	payload, err := json.Marshal(ws)
+	payload, err := json.Marshal(ws, json.Deterministic(true))
 	if err != nil {
 		return false, fmt.Errorf("widgetimport schedule: marshal: %w", err)
 	}

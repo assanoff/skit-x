@@ -1,7 +1,7 @@
 package widget
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"time"
 
@@ -122,7 +122,7 @@ func (r *Response) GetTranslationKey() (modelName, keyID string) {
 
 // Encode implements rest.ResponseEncoder.
 func (r *Response) Encode() ([]byte, string, error) {
-	data, err := json.Marshal(r)
+	data, err := json.Marshal(r, json.Deterministic(true))
 	if err != nil {
 		return nil, "", fmt.Errorf("encode widget: %w", err)
 	}
@@ -145,7 +145,7 @@ func (l ResponseList) Translatables() []translation.Translatable {
 
 // Encode implements rest.ResponseEncoder.
 func (l ResponseList) Encode() ([]byte, string, error) {
-	data, err := json.Marshal(l)
+	data, err := json.Marshal(l, json.Deterministic(true))
 	if err != nil {
 		return nil, "", fmt.Errorf("encode widget list: %w", err)
 	}

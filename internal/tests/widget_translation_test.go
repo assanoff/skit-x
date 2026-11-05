@@ -2,7 +2,7 @@ package tests
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -95,7 +95,7 @@ func doLangReq(t *testing.T, srv *httptest.Server, path, lang string, v any) {
 	}
 	assertStatus(t, resp, http.StatusOK)
 	defer func() { _ = resp.Body.Close() }()
-	if err := json.NewDecoder(resp.Body).Decode(v); err != nil {
+	if err := json.UnmarshalRead(resp.Body, v); err != nil {
 		t.Fatalf("decode %s: %v", path, err)
 	}
 }

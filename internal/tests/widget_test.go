@@ -9,7 +9,7 @@ package tests
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"io"
 	"log/slog"
 	"net/http"
@@ -192,7 +192,7 @@ func assertStatus(t *testing.T, resp *http.Response, want int) {
 func decode(t *testing.T, resp *http.Response, v any) {
 	t.Helper()
 	defer func() { _ = resp.Body.Close() }()
-	if err := json.NewDecoder(resp.Body).Decode(v); err != nil {
+	if err := json.UnmarshalRead(resp.Body, v); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
 }

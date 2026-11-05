@@ -13,7 +13,7 @@ package widgetwebhook
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -50,7 +50,7 @@ func (n *Notifier) handle(ctx context.Context, d eventbus.Data) error {
 		return err
 	}
 
-	body, err := json.Marshal(ev)
+	body, err := json.Marshal(ev, json.Deterministic(true))
 	if err != nil {
 		return fmt.Errorf("widgetwebhook: marshal: %w", err)
 	}
