@@ -6,8 +6,8 @@ import (
 )
 
 // ServeCommand runs everything in one process: the REST API, the gRPC server
-// and its gateway, the technical routes, the background workers and the queue
-// consumers. This is the default for local development and single-pod
+// and its gateway with the rereads of the widget settings, the technical
+// routes, the background workers and the queue consumers. This is the default for local development and single-pod
 // deployments; the http / worker / consumer commands split the same binary
 // across pods.
 type ServeCommand struct {
@@ -20,6 +20,7 @@ func (c *ServeCommand) Execute(_ []string) error {
 		server.WithServer(c.HTTP.Addr, server.Install),
 		server.WithGRPC(c.GRPC.Addr),
 		server.WithGateway(c.Gateway.Addr, c.GRPC.Addr),
+		server.WithSettings(),
 		server.WithServer(c.Debug.Addr, server.Debug),
 		server.WithWorkers(),
 		server.WithConsumers(),

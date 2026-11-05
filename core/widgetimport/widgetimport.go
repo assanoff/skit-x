@@ -23,6 +23,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/assanoff/skit/errs"
 	"github.com/assanoff/skit/queue"
 	"github.com/assanoff/skit/worker"
 
@@ -48,14 +49,28 @@ type Store interface {
 
 // Importer enqueues and processes widget-import batches.
 type Importer struct {
-	log   *slog.Logger
-	q     *queue.PG
-	store Store
+	log      *slog.Logger
+	q        *queue.PG
+	store    Store
+	settings func() widget.Settings
+}
+
+// Option customizes an Importer.
+type Option func(*Importer)
+
+// WithSettings makes Schedule read the widget settings from current on every
+// import; without it the imports run on widget.DefaultSettings.
+func WithSettings(current func() widget.Settings) Option {
+	return func(im *Importer) { im.settings = current }
 }
 
 // New builds an Importer over the given durable queue and store.
-func New(log *slog.Logger, q *queue.PG, store Store) *Importer {
-	return &Importer{log: log, q: q, store: store}
+func New(log *slog.Logger, q *queue.PG, store Store, opts ...Option) *Importer {
+	im := &Importer{log: log, q: q, store: store, settings: widget.DefaultSettings}
+	for _, opt := range opts {
+		opt(im)
+	}
+	return im
 }
 
 // Schedule enqueues a batch of widgets for import under the dedup key name
@@ -63,7 +78,18 @@ func New(log *slog.Logger, q *queue.PG, store Store) *Importer {
 // is already in the queue.
 // IDs and timestamps are assigned here, at enqueue time, so replaying the task
 // (at-least-once delivery) inserts the same rows — keeping Handle idempotent.
+// The settings decide at enqueue time too: while they are read-only Schedule
+// fails with errs.Unavailable, and a batch over their ImportLimit with
+// errs.InvalidArgument; a batch already in the queue is imported.
 func (im *Importer) Schedule(ctx context.Context, name string, news []widget.NewWidget) (bool, error) {
+	set := im.settings()
+	if err := set.Writable(); err != nil {
+		return false, err
+	}
+	if len(news) > set.ImportLimit {
+		return false, errs.Newf(errs.InvalidArgument,
+			"an import takes up to %d widgets, not %d", set.ImportLimit, len(news))
+	}
 	now := time.Now().UTC()
 	ws := make([]widget.Widget, len(news))
 	for i, n := range news {

@@ -7,7 +7,8 @@ import (
 
 // HTTPCommand serves the traffic only (REST, gRPC, gateway) plus the technical
 // routes: no background workers, no queue consumers. Safe to scale to N
-// replicas — nothing in this process polls the database on a timer.
+// replicas — the only timer of this process rereads one row, the widget
+// settings, every 30s.
 type HTTPCommand struct {
 	config.ServerOpts
 }
@@ -18,6 +19,7 @@ func (c *HTTPCommand) Execute(_ []string) error {
 		server.WithServer(c.HTTP.Addr, server.Install),
 		server.WithGRPC(c.GRPC.Addr),
 		server.WithGateway(c.Gateway.Addr, c.GRPC.Addr),
+		server.WithSettings(),
 		server.WithServer(c.Debug.Addr, server.Debug),
 	)
 }

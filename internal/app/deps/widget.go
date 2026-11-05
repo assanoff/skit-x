@@ -6,6 +6,7 @@ import (
 
 	"github.com/assanoff/skit/dim"
 	"github.com/assanoff/skit/poller"
+	"github.com/assanoff/skit/settings"
 
 	widgetapi "github.com/assanoff/skit-x/api/widget"
 	"github.com/assanoff/skit-x/core/widget"
@@ -13,6 +14,22 @@ import (
 	"github.com/assanoff/skit-x/core/widgetimport"
 	"github.com/assanoff/skit-x/internal/app/handlers/widgetgrpc"
 )
+
+// initWidgetSettings reads the widget settings, the document "widgets" of the
+// table settings, with widget.DefaultSettings for what is not stored. The
+// table is owned by the SDK settings package, so it is provisioned here at
+// startup via EnsureSchema. A failed read fails the start: the service does
+// not run on the defaults in place of the settings an admin saved.
+var initWidgetSettings = func(c *Deps) (dim.CleanupFunc, error) {
+	c.WidgetSettings = dim.OnceWithName("WidgetSettings", func(ctx context.Context) (*settings.Settings[widget.Settings], error) {
+		db := c.DB(ctx)
+		if err := settings.EnsureSchema(ctx, c.Logger, db); err != nil {
+			return nil, err
+		}
+		return settings.New(ctx, c.Logger, db, "widgets", widget.DefaultSettings())
+	})
+	return nil, nil
+}
 
 // initWidgetCore builds the widget business core over the Postgres store. Its
 // widget.created event goes into the queue of events (atomic with the widget
@@ -23,18 +40,25 @@ var initWidgetCore = func(c *Deps) (dim.CleanupFunc, error) {
 		store := widgetdb.NewStore(c.Logger, c.DB(ctx), widgetdb.WithTasks(c.Tasks(ctx)))
 
 		// In-process dispatch is always on (a bus with no consumers is a no-op).
-		opts := []widget.Option{widget.WithEventBus(c.Bus(ctx)), widget.WithMetrics(c.Metrics)}
+		// The writes check the settings an admin keeps.
+		opts := []widget.Option{
+			widget.WithEventBus(c.Bus(ctx)),
+			widget.WithMetrics(c.Metrics),
+			widget.WithSettings(c.WidgetSettings(ctx).Current),
+		}
 		return widget.NewCore(c.Logger, store, opts...), nil
 	})
 	return nil, nil
 }
 
 // initWidgetImport builds the widget bulk-import service over the durable queue
-// and the widget store (which provides the idempotent BulkInsert).
+// and the widget store (which provides the idempotent BulkInsert); an import
+// checks the settings an admin keeps.
 var initWidgetImport = func(c *Deps) (dim.CleanupFunc, error) {
 	c.WidgetImport = dim.OnceWithName("WidgetImport", func(ctx context.Context) (*widgetimport.Importer, error) {
 		store := widgetdb.NewStore(c.Logger, c.DB(ctx))
-		return widgetimport.New(c.Logger, c.Queue(ctx), store), nil
+		current := widgetimport.WithSettings(c.WidgetSettings(ctx).Current)
+		return widgetimport.New(c.Logger, c.Queue(ctx), store, current), nil
 	})
 	return nil, nil
 }
@@ -64,7 +88,7 @@ var initWidgetCount = func(c *Deps) (dim.CleanupFunc, error) {
 // background-import endpoint and the cached-count endpoint.
 var initWidgetHandler = func(c *Deps) (dim.CleanupFunc, error) {
 	c.WidgetHandler = dim.OnceWithName("WidgetHandler", func(ctx context.Context) (*widgetapi.Handler, error) {
-		return widgetapi.New(c.WidgetCore(ctx), c.WidgetImport(ctx), c.WidgetCount(ctx), c.Translation(ctx), c.AuthVerifier(ctx), c.Opts.Auth.RequiredRole), nil
+		return widgetapi.New(c.WidgetCore(ctx), c.WidgetImport(ctx), c.WidgetCount(ctx), c.WidgetSettings(ctx), c.Translation(ctx), c.AuthVerifier(ctx), c.Opts.Auth.RequiredRole), nil
 	})
 	return nil, nil
 }

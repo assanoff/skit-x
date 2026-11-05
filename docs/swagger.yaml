@@ -51,6 +51,20 @@ components:
         updated_at:
           type: string
       type: object
+    widget.SettingsReq:
+      properties:
+        import_limit:
+          type: integer
+        read_only:
+          type: boolean
+      type: object
+    widget.SettingsResponse:
+      properties:
+        import_limit:
+          type: integer
+        read_only:
+          type: boolean
+      type: object
     widget.TranslateWidgetReq:
       properties:
         description:
@@ -84,6 +98,44 @@ info:
   version: "1.0"
 openapi: 3.1.0
 paths:
+  /admin/widget-settings:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/widget.SettingsResponse'
+          description: OK
+      summary: Get the widget settings
+      tags:
+      - widgets
+    put:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/widget.SettingsReq'
+              description: the whole settings
+              summary: request
+        description: the whole settings
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/widget.SettingsResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                type: string
+          description: invalid argument
+      summary: Save the widget settings
+      tags:
+      - widgets
   /widgets:
     get:
       responses:

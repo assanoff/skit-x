@@ -102,6 +102,31 @@ type CountResponse struct {
 	Count int `json:"count"`
 }
 
+// SettingsReq is the request body that saves the widget settings: the whole
+// document, a field it lacks is zero. The core checks it (Settings.Check).
+type SettingsReq struct {
+	ReadOnly    bool `json:"read_only"`
+	ImportLimit int  `json:"import_limit"`
+}
+
+// Decode implements rest.Decoder.
+func (req *SettingsReq) Decode(data []byte) error {
+	if err := json.Unmarshal(data, req); err != nil {
+		return fmt.Errorf("decode widget settings: %w", err)
+	}
+	return nil
+}
+
+// SettingsResponse is the REST representation of the widget settings.
+type SettingsResponse struct {
+	ReadOnly    bool `json:"read_only"`
+	ImportLimit int  `json:"import_limit"`
+}
+
+func toSettingsResponse(s widgetcore.Settings) SettingsResponse {
+	return SettingsResponse{ReadOnly: s.ReadOnly, ImportLimit: s.ImportLimit}
+}
+
 // Response is the REST representation of a widget. The translate tags mark the
 // fields the translationrest middleware translates into the request language;
 // Response is both a rest.ResponseEncoder and a translation.Translatable, so the

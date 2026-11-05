@@ -22,6 +22,7 @@ import (
 	"github.com/assanoff/skit/metrics"
 	"github.com/assanoff/skit/poller"
 	"github.com/assanoff/skit/queue"
+	"github.com/assanoff/skit/settings"
 	"github.com/assanoff/skit/translation"
 
 	productapi "github.com/assanoff/skit-x/api/product"
@@ -68,11 +69,14 @@ type Deps struct {
 	// (see internal/app/idempotency).
 	Dedup dim.Provider[*dedup.Keeper]
 
-	WidgetCore    dim.Provider[*widget.Core]
-	WidgetImport  dim.Provider[*widgetimport.Importer]
-	WidgetCount   dim.Provider[*poller.Poller[int]]
-	WidgetHandler dim.Provider[*widgetapi.Handler]
-	WidgetGRPC    dim.Provider[*widgetgrpc.Handler]
+	// WidgetSettings are the widget settings an admin changes while the
+	// service runs; server.WithSettings runs their rereads.
+	WidgetSettings dim.Provider[*settings.Settings[widget.Settings]]
+	WidgetCore     dim.Provider[*widget.Core]
+	WidgetImport   dim.Provider[*widgetimport.Importer]
+	WidgetCount    dim.Provider[*poller.Poller[int]]
+	WidgetHandler  dim.Provider[*widgetapi.Handler]
+	WidgetGRPC     dim.Provider[*widgetgrpc.Handler]
 
 	UserCore    dim.Provider[*user.Core]
 	UserHandler dim.Provider[*userapi.Handler]
@@ -98,6 +102,7 @@ var Initializers = []app.Initializer[Deps]{
 	initDedup,
 
 	// Core business logic
+	initWidgetSettings,
 	initWidgetCore,
 	initWidgetImport,
 	initWidgetCount,

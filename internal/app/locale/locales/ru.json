@@ -1,4 +1,5 @@
 {
   "widget.not_found": "виджет {{.id}} не найден",
-  "widget.already_exists": "виджет {{.name}} уже существует"
+  "widget.already_exists": "виджет {{.name}} уже существует",
+  "widget.read_only": "виджеты сейчас только для чтения"
 }

@@ -29,12 +29,21 @@ type Counter interface {
 	Current() int
 }
 
+// Settings keep the widget settings: the ones in force, read from memory, and
+// a save for the admin. They are satisfied by a
+// *settings.Settings[widgetcore.Settings].
+type Settings interface {
+	Current() widgetcore.Settings
+	Save(ctx context.Context, v widgetcore.Settings) error
+}
+
 // Handler exposes widget endpoints. It holds the auth verifier (nil when auth is
 // disabled) and the required role so Routes can build its own write guard.
 type Handler struct {
 	core       *widgetcore.Core
 	importer   *widgetimport.Importer
 	counter    Counter
+	settings   Settings
 	translator *translation.Translator
 	verifier   auth.Verifier
 	role       string
@@ -42,8 +51,8 @@ type Handler struct {
 
 // New builds a Handler. verifier is nil when auth is disabled, in which case the
 // guard Routes builds is a no-op and every route stays public.
-func New(core *widgetcore.Core, importer *widgetimport.Importer, counter Counter, translator *translation.Translator, verifier auth.Verifier, role string) *Handler {
-	return &Handler{core: core, importer: importer, counter: counter, translator: translator, verifier: verifier, role: role}
+func New(core *widgetcore.Core, importer *widgetimport.Importer, counter Counter, settings Settings, translator *translation.Translator, verifier auth.Verifier, role string) *Handler {
+	return &Handler{core: core, importer: importer, counter: counter, settings: settings, translator: translator, verifier: verifier, role: role}
 }
 
 // Routes registers the widget endpoints through the handle seam, so this
@@ -71,6 +80,47 @@ func (h *Handler) Routes(handle rest.Handle) {
 	handle("PUT /widgets/{id}", h.update, guard)
 	handle("DELETE /widgets/{id}", h.delete, guard)
 	handle("POST /widgets/{id}/translations", h.saveTranslation, guard)
+
+	// Admin: the widget settings, read and saved under the same guard.
+	handle("GET /admin/widget-settings", h.querySettings, guard)
+	handle("PUT /admin/widget-settings", h.saveSettings, guard)
+}
+
+// querySettings returns the widget settings in force on this replica.
+//
+//	@Summary	Get the widget settings
+//	@Tags		widgets
+//	@Produce	json
+//	@Success	200	{object}	SettingsResponse
+//	@Router		/admin/widget-settings [get]
+func (h *Handler) querySettings(_ context.Context, _ *http.Request) rest.ResponseEncoder {
+	return rest.JSON(toSettingsResponse(h.settings.Current()))
+}
+
+// saveSettings checks the whole settings document and saves it. This replica
+// uses it at once, the others after their next reread.
+//
+//	@Summary	Save the widget settings
+//	@Tags		widgets
+//	@Accept		json
+//	@Produce	json
+//	@Param		request	body		SettingsReq	true	"the whole settings"
+//	@Success	200		{object}	SettingsResponse
+//	@Failure	400		{string}	string	"invalid argument"
+//	@Router		/admin/widget-settings [put]
+func (h *Handler) saveSettings(ctx context.Context, r *http.Request) rest.ResponseEncoder {
+	var req SettingsReq
+	if err := rest.Decode(r, &req); err != nil {
+		return errs.From(err)
+	}
+	s := widgetcore.Settings{ReadOnly: req.ReadOnly, ImportLimit: req.ImportLimit}
+	if err := s.Check(); err != nil {
+		return errs.From(err)
+	}
+	if err := h.settings.Save(ctx, s); err != nil {
+		return errs.New(errs.Internal, err)
+	}
+	return rest.JSON(toSettingsResponse(h.settings.Current()))
 }
 
 // importBatch enqueues a batch of widgets for asynchronous bulk insertion by the

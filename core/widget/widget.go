@@ -76,6 +76,9 @@ type Core struct {
 	// to the durable outbox event). nil disables in-process dispatch.
 	bus *eventbus.Bus
 
+	// settings returns the settings in force: a write checks them first.
+	settings func() Settings
+
 	m metrics
 }
 
@@ -94,7 +97,7 @@ func WithEventBus(bus *eventbus.Bus) Option {
 
 // NewCore constructs a Core.
 func NewCore(log *slog.Logger, store Store, opts ...Option) *Core {
-	c := &Core{log: log, store: store, m: newMetrics(nil)}
+	c := &Core{log: log, store: store, settings: DefaultSettings, m: newMetrics(nil)}
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -104,8 +107,12 @@ func NewCore(log *slog.Logger, store Store, opts ...Option) *Core {
 // Create validates and persists a new widget and schedules a widget.created
 // event in the same transaction (transactional outbox). The wiring decides
 // where the event goes: into the queue of events when the broker is on,
-// nowhere when it is off.
+// nowhere when it is off. While the settings are read-only it fails with
+// errs.Unavailable, as Update and Delete do.
 func (c *Core) Create(ctx context.Context, nw NewWidget) (Widget, error) {
+	if err := c.settings().Writable(); err != nil {
+		return Widget{}, err
+	}
 	now := time.Now().UTC()
 	w := Widget{
 		ID:          uuid.New(),
@@ -207,6 +214,9 @@ func (c *Core) QueryByCursor(ctx context.Context, filter QueryFilter, cur page.C
 
 // Update applies a partial update and persists it.
 func (c *Core) Update(ctx context.Context, id uuid.UUID, uw UpdateWidget) (Widget, error) {
+	if err := c.settings().Writable(); err != nil {
+		return Widget{}, err
+	}
 	w, err := c.QueryByID(ctx, id)
 	if err != nil {
 		return Widget{}, err
@@ -266,6 +276,9 @@ func auditActor(ctx context.Context) string {
 
 // Delete removes a widget.
 func (c *Core) Delete(ctx context.Context, id uuid.UUID) error {
+	if err := c.settings().Writable(); err != nil {
+		return err
+	}
 	if err := c.store.Delete(ctx, id); err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return c.notFound(id)

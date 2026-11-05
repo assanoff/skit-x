@@ -20,10 +20,11 @@ import (
 // Opts declares the available subcommands.
 //
 // The four long-running commands run the same binary with a different list of
-// options (server.WithServer / WithGRPC / WithGateway / WithWorkers /
-// WithConsumers, see internal/app/server/options.go): serve = everything in one
-// process, the others split it across pods. Each of them lists a server with
-// server.Debug on DEBUG_ADDR, so probes work whatever the process runs.
+// options (server.WithServer / WithGRPC / WithGateway / WithSettings /
+// WithWorkers / WithConsumers, see internal/app/server/options.go): serve =
+// everything in one process, the others split it across pods. Each of them
+// lists a server with server.Debug on DEBUG_ADDR, so probes work whatever the
+// process runs.
 type Opts struct {
 	Serve    ServeCommand    `command:"serve" description:"run everything in one process: transports + workers + consumers"`
 	HTTP     HTTPCommand     `command:"http" description:"run the transports only (REST/gRPC/gateway), scale to N replicas"`

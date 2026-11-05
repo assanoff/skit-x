@@ -105,6 +105,17 @@ func WithWorkers() Option {
 	}
 }
 
+// WithSettings adds the rereads of the widget settings, which an admin saves
+// with PUT /admin/widget-settings: a save shows on the replica that made it at
+// once, on the others with their next reread, within 30s. A process that
+// serves the API lists it; without it the settings stay as read at the start.
+func WithSettings() Option {
+	return func(ctx context.Context, a *App) error {
+		a.workers = append(a.workers, a.d.WidgetSettings(ctx))
+		return nil
+	}
+}
+
 // WithConsumers adds the queue consumers (see initConsumers). More than one
 // replica is safe.
 func WithConsumers() Option {

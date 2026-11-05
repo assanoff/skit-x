@@ -12,9 +12,10 @@ import (
 
 // run is the body shared by every long-running command (serve, http, worker,
 // consumer). The only difference between them is the options they list —
-// server.WithServer, server.WithGRPC, server.WithGateway, server.WithWorkers,
-// server.WithConsumers (see internal/app/server/options.go): server.New builds
-// the process out of them, app.Run supervises it.
+// server.WithServer, server.WithGRPC, server.WithGateway, server.WithSettings,
+// server.WithWorkers, server.WithConsumers (see
+// internal/app/server/options.go): server.New builds the process out of them,
+// app.Run supervises it.
 //
 // Every one of them lists a server with server.Debug — /healthz, /readyz,
 // /metrics, /debug/pprof/, /version, /debug/components — which is what keeps
