@@ -113,7 +113,8 @@ func (a *App) Components() Components {
 
 // initWorkers registers the background work: the domain loops with the queue
 // backlog and — when the broker is enabled — the workers of the queue of
-// events, which publish the events scheduled with the domain writes.
+// events, which publish the events scheduled with the domain writes, and the
+// keeper of the partitions of widget_event_log.
 //
 // Run it as a single replica: these loops poll the same rows, so extra replicas
 // only add database load (and any wall-clock job would fire twice).
@@ -159,6 +160,22 @@ func (a *App) initWorkers(ctx context.Context) error {
 		return err
 	}
 	a.workers = append(a.workers, workers...)
+
+	// The consumer records the events into widget_event_log, partitioned by
+	// month. The keeper makes the partitions of this month and the next at the
+	// start and checks them every hour; its runs on several replicas take their
+	// turns. skit_worker_*{worker="widget-event-log-partitions"} tells when it
+	// last succeeded.
+	keeper, err := widgetaudit.Partitions(a.d.Logger, a.d.DB(ctx), a.opts.Broker.LogRetention)
+	if err != nil {
+		return err
+	}
+	a.workers = append(a.workers, worker.NewLoop(a.d.Logger, worker.LoopConfig{
+		Name:               "widget-event-log-partitions",
+		Interval:           time.Hour,
+		ImmediateFirstTick: true,
+		Metrics:            a.d.Metrics,
+	}, keeper.Maintain))
 	return nil
 }
 

@@ -6,8 +6,9 @@ import (
 )
 
 // WorkerCommand runs the background work only: the widget-import workers, the
-// widget-count poller and the workers of the queue of events, plus the
-// technical routes on DEBUG_ADDR. No API, no consumers.
+// widget-count poller, the workers of the queue of events and the keeper of the
+// partitions of widget_event_log, plus the technical routes on DEBUG_ADDR. No
+// API, no consumers.
 //
 // Run it as a single replica: these loops poll the same rows, so extra replicas
 // only add database load (and any wall-clock job would fire twice).

@@ -74,6 +74,16 @@ func TestWidgetOutboxE2E(t *testing.T) {
 	}
 	core := widget.NewCore(log, widgetdb.NewStore(log, db, widgetdb.WithTasks(tasks)))
 
+	// The partitions of widget_event_log, which the app makes in its workers,
+	// come before the consumer records the event.
+	keeper, err := widgetaudit.Partitions(log, db, 0)
+	if err != nil {
+		t.Fatalf("partitions: %v", err)
+	}
+	if err := keeper.Maintain(ctx); err != nil {
+		t.Fatalf("make the partitions: %v", err)
+	}
+
 	recorder := widgetaudit.New(log, db)
 	consumer, err := rabbitmq.NewConsumer(log, conn, rabbitmq.ConsumerConfig{
 		Queue:          auditQueue,

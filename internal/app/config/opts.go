@@ -117,6 +117,9 @@ type Broker struct {
 	Source   string `long:"source"      env:"SOURCE"      default:"skit-example" description:"CloudEvents source"`
 	Exchange string `long:"exchange"    env:"EXCHANGE"    default:"skit.widgets" description:"widget events exchange"`
 	Queue    string `long:"queue"       env:"QUEUE"       default:"skit.widget-audit" description:"consumer queue"`
+	// LogRetention is how long widget_event_log keeps an event: its monthly
+	// partitions go once they are that old.
+	LogRetention time.Duration `long:"log-retention" env:"LOG_RETENTION" default:"2160h" description:"how long widget_event_log keeps the events (0 keeps them all)"`
 }
 
 // Auth holds JWT authentication settings for widget write endpoints. Auth is on
